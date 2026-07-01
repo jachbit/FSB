@@ -262,18 +262,13 @@
   </div>
 
   <div class="sgroup">
-    <label>Dot Size <span class="val" id="vDot">5</span></label>
+    <label>Font Size <span class="val" id="vDot">12</span></label>
     <input type="range" id="sDot" min="2" max="20" value="12" oninput="cfg.dotSize=+this.value;document.getElementById('vDot').textContent=this.value;rebuildLED()">
   </div>
 
-  <div class="sgroup">
+  <div class="sgroup" style="display:none">
     <label>Dot Gap <span class="val" id="vGap">2</span></label>
     <input type="range" id="sGap" min="1" max="6" value="2" oninput="cfg.dotGap=+this.value;document.getElementById('vGap').textContent=this.value;rebuildLED()">
-  </div>
-
-  <div class="sgroup">
-    <label>Glow Intensity <span class="val" id="vGlow">18</span></label>
-    <input type="range" id="sGlow" min="0" max="40" value="18" oninput="cfg.glow=+this.value;document.getElementById('vGlow').textContent=this.value">
   </div>
 
   <div class="sgroup">
@@ -448,89 +443,59 @@ async function fetchAll() {
   rebuildLED();
 }
 
-// ── LED DOT MATRIX ───────────────────────────────────────────────────────────
-// Fixed LED matrix rows — like a real sign (7 dot rows per character).
-// Dot SIZE controls physical scale; character row count stays constant.
-const CHAR_ROWS = 7;
+// ── TICKER TEXT SEGMENTS ──────────────────────────────────────────────────────
+// Simple fillText rendering — no dot matrix, no canvas size limits.
+function buildTickerItems(ctx) {
+  const fs   = cfg.dotSize * 4 + 8;   // dotSize slider drives font size
+  const font = `bold ${fs}px ${cfg.font}`;
+  ctx.font   = font;
+  const GAP  = fs * 0.9;              // space between tickers
 
-function textToDots(text, dotGrid) {
-  const cellH    = CHAR_ROWS * dotGrid;
-  const fontSize = Math.round(cellH * 0.88);
-  const oc       = document.createElement('canvas');
-  oc.height      = cellH;
-  const octx     = oc.getContext('2d');
-  octx.font      = `900 ${fontSize}px ${cfg.font}`;
-  const tw       = octx.measureText(text).width;
-  oc.width       = Math.max(1, Math.ceil(tw) + dotGrid * 2);
-  octx.font      = `900 ${fontSize}px ${cfg.font}`;
-  octx.fillStyle = '#fff';
-  octx.fillText(text, dotGrid, fontSize * 0.9);
-
-  const imgData  = octx.getImageData(0, 0, oc.width, oc.height);
-  const dots     = [];
-  for (let gy = 0; gy < CHAR_ROWS; gy++) {
-    for (let gx = 0; gx < Math.ceil(oc.width / dotGrid); gx++) {
-      const px = gx * dotGrid + Math.floor(dotGrid / 2);
-      const py = gy * dotGrid + Math.floor(dotGrid / 2);
-      if (px >= oc.width || py >= oc.height) continue;
-      if (imgData.data[(py * oc.width + px) * 4 + 3] > 80) dots.push([gx, gy]);
-    }
-  }
-  return { dots, gridW: Math.ceil(oc.width / dotGrid) };
-}
-
-function buildTickerItem(sym, dotGrid) {
-  const d    = quoteData[sym];
-  const disp = sym.replace('^','').replace('-USD',' USD');
-  const dir  = d ? (d.chg > 0 ? 'up' : d.chg < 0 ? 'down' : 'flat') : 'na';
-  const parts = [];
-
-  parts.push({ m: textToDots(disp, dotGrid), c: cfg.symColor });
-  parts.push({ m: { dots:[], gridW: 2 }, c: '#000' });
-
-  if (d) {
-    const pStr = d.price >= 1000
-      ? d.price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})
-      : d.price.toFixed(2);
-    parts.push({ m: textToDots(pStr, dotGrid), c: cfg.priceColor });
-    parts.push({ m: { dots:[], gridW: 3 }, c: '#000' }); // gap between price and change
-    const sign  = d.chg >= 0 ? '+' : '';
-    const arrow = d.chg > 0 ? '▲' : d.chg < 0 ? '▼' : '■';
-    const cStr  = `${arrow}${sign}${d.chg.toFixed(2)} (${sign}${d.pct.toFixed(2)}%)`;
-    parts.push({ m: textToDots(cStr, dotGrid), c: dir==='up'?cfg.upColor:dir==='down'?cfg.downColor:'#888' });
-  } else {
-    parts.push({ m: textToDots('---', dotGrid), c: '#444' });
-  }
-
-  parts.push({ m: textToDots(' | ', dotGrid), c: cfg.divColor });
-
-  const dots = [];
-  let x = 0;
-  parts.forEach(({ m, c }) => {
-    m.dots.forEach(([gx, gy]) => dots.push({ gx: gx + x, gy, color: c }));
-    x += m.gridW + 1;
-  });
-  return { dots, gridW: x };
-}
-
-function buildTickerDotMap() {
-  const dotGrid       = cfg.dotSize + cfg.dotGap;
-  const gapGrid       = Math.max(6, Math.floor(60 / dotGrid));
-  const allDots       = [];
-  const tickerMarkers = [];
+  const segments  = [];  // {text, color, x, w}
+  const markers   = [];  // {sym, x} for voice trigger
   let curX = 0;
 
   tickers.forEach(sym => {
-    const item       = buildTickerItem(sym, dotGrid);
-    const startGridX = curX;
-    item.dots.forEach(({ gx, gy, color }) => {
-      allDots.push({ gx: gx + curX, gy, color });
-    });
-    tickerMarkers.push({ sym, startGridX });
-    curX += item.gridW + gapGrid;
+    const d    = quoteData[sym];
+    const disp = sym.replace('^','').replace('-USD',' USD');
+    markers.push({ sym, x: curX });
+
+    // Symbol
+    const symText = disp + '  ';
+    const symW    = ctx.measureText(symText).width;
+    segments.push({ text: symText, color: cfg.symColor, x: curX, w: symW });
+    curX += symW;
+
+    if (d) {
+      const pStr = d.price >= 1000
+        ? d.price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})
+        : d.price.toFixed(2);
+      const priceText = pStr + '  ';
+      const priceW    = ctx.measureText(priceText).width;
+      segments.push({ text: priceText, color: cfg.priceColor, x: curX, w: priceW });
+      curX += priceW;
+
+      const sign    = d.chg >= 0 ? '+' : '';
+      const arrow   = d.chg > 0 ? '▲' : d.chg < 0 ? '▼' : '■';
+      const chgText = `${arrow}${sign}${d.chg.toFixed(2)} (${sign}${d.pct.toFixed(2)}%)`;
+      const chgColor = d.chg > 0 ? cfg.upColor : d.chg < 0 ? cfg.downColor : '#888';
+      const chgW     = ctx.measureText(chgText).width;
+      segments.push({ text: chgText, color: chgColor, x: curX, w: chgW });
+      curX += chgW;
+    } else {
+      const naW = ctx.measureText('---').width;
+      segments.push({ text: '---', color: '#555', x: curX, w: naW });
+      curX += naW;
+    }
+
+    // Divider gap
+    const divText = '  |  ';
+    const divW    = ctx.measureText(divText).width;
+    segments.push({ text: divText, color: cfg.divColor, x: curX, w: divW });
+    curX += divW + GAP;
   });
 
-  return { allDots, totalGridW: curX, tickerMarkers };
+  return { segments, totalWidth: curX, markers, font };
 }
 
 // ── VOICE ENGINE ─────────────────────────────────────────────────────────────
@@ -599,96 +564,47 @@ function toggleVoice() {
   if (!voiceOn) window.speechSynthesis.cancel();
 }
 
-// ── PRE-RENDER BG CANVAS (unlit dots only, screen-sized) ─────────────────────
-function buildBgCanvas(W, H) {
-  const dotGrid = cfg.dotSize + cfg.dotGap;
-  const r       = cfg.dotSize / 2;
-  const bg      = document.createElement('canvas');
-  bg.width  = W;
-  bg.height = H;
-  const bctx = bg.getContext('2d');
-  bctx.fillStyle = cfg.bgColor;
-  bctx.fillRect(0, 0, W, H);
-  bctx.fillStyle = cfg.dimColor;
-  const cols = Math.ceil(W / dotGrid) + 1;
-  const rows2 = Math.ceil(H / dotGrid) + 1;
-  for (let gy = 0; gy < rows2; gy++) {
-    for (let gx = 0; gx < cols; gx++) {
-      bctx.beginPath();
-      bctx.arc(gx * dotGrid + r, gy * dotGrid + r, r * 0.75, 0, Math.PI * 2);
-      bctx.fill();
-    }
-  }
-  return bg;
-}
-
-// ── RENDER LOOP (real-time dot drawing — no strip canvas size limit) ──────────
+// ── RENDER LOOP ───────────────────────────────────────────────────────────────
 function drawFrame() {
   rows.forEach((row, ri) => {
-    const { canvas, ctx, dotMap, bgCanvas } = row;
-    if (!dotMap) return;
-    const W       = canvas.width;
-    const H       = canvas.height;
-    const dotGrid = cfg.dotSize + cfg.dotGap;
-    const r       = cfg.dotSize / 2;
-    const totalPx = dotMap.totalGridW * dotGrid;
-    if (totalPx <= 0) return;
+    const { canvas, ctx, tickerData } = row;
+    if (!tickerData) return;
+    const { segments, totalWidth, markers, font } = tickerData;
+    if (totalWidth <= 0) return;
+    const W = canvas.width, H = canvas.height;
 
     const prevOffset = row.offset;
     const spd = cfg.speed * (ri === 1 ? 0.85 : ri === 2 ? 1.15 : 1);
-    row.offset = (row.offset + spd) % totalPx;
+    row.offset = (row.offset + spd) % totalWidth;
 
-    // Voice: fire when ticker left edge scrolls onto screen from right (row 0 only)
-    if (ri === 0 && dotMap.tickerMarkers) {
-      dotMap.tickerMarkers.forEach(({ sym, startGridX }) => {
-        const px    = startGridX * dotGrid;
-        const xNow  = ((px - row.offset)  % totalPx + totalPx) % totalPx;
-        const xPrev = ((px - prevOffset)   % totalPx + totalPx) % totalPx;
+    // Voice: fire when ticker left edge enters screen from right (row 0 only)
+    if (ri === 0) {
+      markers.forEach(({ sym, x }) => {
+        const xNow  = ((x - row.offset)  % totalWidth + totalWidth) % totalWidth;
+        const xPrev = ((x - prevOffset)   % totalWidth + totalWidth) % totalWidth;
         if (xPrev > W && xNow <= W) speakTicker(sym);
       });
     }
 
-    // Draw unlit background
-    if (bgCanvas && bgCanvas.width === W && bgCanvas.height === H) {
-      ctx.drawImage(bgCanvas, 0, 0);
-    } else {
-      ctx.fillStyle = cfg.bgColor;
-      ctx.fillRect(0, 0, W, H);
-    }
+    // Clear
+    ctx.fillStyle = cfg.bgColor;
+    ctx.fillRect(0, 0, W, H);
 
-    // Vertical centre: align CHAR_ROWS rows in the middle of canvas
-    const charPx  = CHAR_ROWS * dotGrid;
-    const yOffPx  = Math.max(0, Math.floor((H - charPx) / 2));
-    const yOff    = Math.floor(yOffPx / dotGrid) * dotGrid; // snap to grid
+    ctx.font         = font;
+    ctx.textBaseline = 'middle';
+    const yMid = H / 2;
 
-    // Collect visible lit dots grouped by color (batch draw for performance)
-    const groups = {};
-    dotMap.allDots.forEach(({ gx, gy, color }) => {
-      const baseX    = gx * dotGrid - row.offset;
-      const repStart = Math.floor((-r - baseX) / totalPx);
-      const repEnd   = Math.ceil((W + r - baseX) / totalPx);
+    // Draw each segment, tiling for seamless loop
+    segments.forEach(({ text, color, x, w }) => {
+      const baseX    = x - row.offset;
+      const repStart = Math.floor(-baseX / totalWidth);
+      const repEnd   = Math.ceil((W - baseX) / totalWidth);
+      ctx.fillStyle  = color;
       for (let rep = repStart; rep <= repEnd; rep++) {
-        const x = baseX + rep * totalPx;
-        if (x + r >= -r && x - r <= W) {
-          if (!groups[color]) groups[color] = [];
-          groups[color].push(x + r, yOff + gy * dotGrid + r);
-        }
+        const dx = baseX + rep * totalWidth;
+        if (dx + w > 0 && dx < W) ctx.fillText(text, dx, yMid);
       }
     });
-
-    // Draw each color in one batched path (one shadowBlur state change per color)
-    Object.entries(groups).forEach(([color, pts]) => {
-      ctx.shadowColor = color;
-      ctx.shadowBlur  = cfg.glow;
-      ctx.fillStyle   = color;
-      ctx.beginPath();
-      for (let i = 0; i < pts.length; i += 2) {
-        ctx.moveTo(pts[i] + r, pts[i + 1]);
-        ctx.arc(pts[i], pts[i + 1], r, 0, Math.PI * 2);
-      }
-      ctx.fill();
-    });
-    ctx.shadowBlur = 0;
   });
   animId = requestAnimationFrame(drawFrame);
 }
@@ -714,19 +630,17 @@ function rebuildLED() {
     canvas.width  = rect.width  || window.innerWidth;
     canvas.height = rect.height || Math.floor((window.innerHeight - 50) / numRows);
 
-    const ctx      = canvas.getContext('2d');
-    const dotMap   = buildTickerDotMap();
-    const bgCanvas = buildBgCanvas(canvas.width, canvas.height);
+    const ctx        = canvas.getContext('2d');
+    const tickerData = buildTickerItems(ctx);
 
-    rows.push({ canvas, ctx, offset: ri * 300, dotMap, bgCanvas });
+    rows.push({ canvas, ctx, offset: ri * 300, tickerData });
   }
 
   window.onresize = () => {
     rows.forEach(row => {
       row.canvas.width  = row.canvas.offsetWidth  || window.innerWidth;
       row.canvas.height = row.canvas.offsetHeight || 100;
-      row.dotMap   = buildTickerDotMap();
-      row.bgCanvas = buildBgCanvas(row.canvas.width, row.canvas.height);
+      row.tickerData = buildTickerItems(row.ctx);
     });
   };
 
@@ -803,7 +717,7 @@ function resetDefaults() {
   cfg.bgColor='#000000'; cfg.symColor='#ffffff'; cfg.priceColor='#00e5ff';
   cfg.upColor='#00ff88'; cfg.downColor='#ff3b3b'; cfg.dimColor='#1a1a1a'; cfg.divColor='#e65c00';
   document.getElementById('sFont').value="'Share Tech Mono', monospace";
-  document.getElementById('sDot').value=5;   document.getElementById('vDot').textContent='5';
+  document.getElementById('sDot').value=12;  document.getElementById('vDot').textContent='12';
   document.getElementById('sGap').value=2;   document.getElementById('vGap').textContent='2';
   document.getElementById('sGlow').value=18; document.getElementById('vGlow').textContent='18';
   document.getElementById('sSpeed').value=1.5; document.getElementById('vSpeed').textContent='Normal';
