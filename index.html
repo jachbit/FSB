@@ -440,7 +440,12 @@ async function fetchAll() {
     document.getElementById('last-update').textContent = 'Updated ' + now + ' ET';
     setStatus(`✓ ${loaded} / ${tickers.length} tickers loaded`, 'ok');
   }
-  rebuildLED();
+  // Refresh ticker segment data in-place — do NOT reset offsets
+  if (rows.length > 0) {
+    rows.forEach(row => { row.tickerData = buildTickerItems(row.ctx); });
+  } else {
+    rebuildLED();
+  }
 }
 
 // ── TICKER TEXT SEGMENTS ──────────────────────────────────────────────────────
