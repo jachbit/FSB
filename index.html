@@ -263,7 +263,7 @@
 
   <div class="sgroup">
     <label>Dot Size <span class="val" id="vDot">5</span></label>
-    <input type="range" id="sDot" min="2" max="12" value="5" oninput="cfg.dotSize=+this.value;document.getElementById('vDot').textContent=this.value;rebuildLED()">
+    <input type="range" id="sDot" min="2" max="20" value="12" oninput="cfg.dotSize=+this.value;document.getElementById('vDot').textContent=this.value;rebuildLED()">
   </div>
 
   <div class="sgroup">
@@ -362,7 +362,7 @@
 <script>
 // ── CONFIG ───────────────────────────────────────────────────────────────────
 const cfg = {
-  dotSize:    5,
+  dotSize:    12,
   dotGap:     2,
   glow:       18,
   speed:      1.5,
@@ -599,95 +599,96 @@ function toggleVoice() {
   if (!voiceOn) window.speechSynthesis.cancel();
 }
 
-// ── PRE-RENDER STRIP ─────────────────────────────────────────────────────────
-// Renders the full ticker sequence onto one wide offscreen canvas.
-// drawFrame just tiles it with drawImage — guaranteed seamless loop.
-function buildStrip(dotMap, canvasH) {
-  const dotGrid  = cfg.dotSize + cfg.dotGap;
-  const r        = cfg.dotSize / 2;
-  // Cap strip width to 8192px max to avoid GPU texture limits
-  const rawPx    = Math.ceil(dotMap.totalGridW * dotGrid);
-  const totalPx  = Math.min(rawPx, 8192);
-  const scale    = totalPx / rawPx; // if capped, scale down positions
-
-  const strip    = document.createElement('canvas');
-  strip.width    = totalPx;
-  strip.height   = canvasH;
-  const sctx     = strip.getContext('2d');
-
-  // Vertical centre offset so CHAR_ROWS dots sit in the middle of the canvas
-  const charPx   = CHAR_ROWS * dotGrid;
-  const yOff     = Math.max(0, Math.floor((canvasH - charPx) / 2));
-  // Round to nearest dot-grid line
-  const yOffGrid = Math.floor(yOff / dotGrid);
-
-  // Background
-  sctx.fillStyle = cfg.bgColor;
-  sctx.fillRect(0, 0, totalPx, canvasH);
-
-  // Unlit dots (LED panel texture — full canvas)
-  sctx.fillStyle = cfg.dimColor;
-  const gridCols = Math.ceil(totalPx / dotGrid) + 1;
-  const gridRows = Math.ceil(canvasH  / dotGrid);
-  for (let gy = 0; gy < gridRows; gy++) {
-    for (let gx = 0; gx < gridCols; gx++) {
-      sctx.beginPath();
-      sctx.arc(gx * dotGrid + r, gy * dotGrid + r, r * 0.75, 0, Math.PI * 2);
-      sctx.fill();
+// ── PRE-RENDER BG CANVAS (unlit dots only, screen-sized) ─────────────────────
+function buildBgCanvas(W, H) {
+  const dotGrid = cfg.dotSize + cfg.dotGap;
+  const r       = cfg.dotSize / 2;
+  const bg      = document.createElement('canvas');
+  bg.width  = W;
+  bg.height = H;
+  const bctx = bg.getContext('2d');
+  bctx.fillStyle = cfg.bgColor;
+  bctx.fillRect(0, 0, W, H);
+  bctx.fillStyle = cfg.dimColor;
+  const cols = Math.ceil(W / dotGrid) + 1;
+  const rows2 = Math.ceil(H / dotGrid) + 1;
+  for (let gy = 0; gy < rows2; gy++) {
+    for (let gx = 0; gx < cols; gx++) {
+      bctx.beginPath();
+      bctx.arc(gx * dotGrid + r, gy * dotGrid + r, r * 0.75, 0, Math.PI * 2);
+      bctx.fill();
     }
   }
-
-  // Lit dots with glow, vertically centred
-  dotMap.allDots.forEach(({ gx, gy, color }) => {
-    const cx = Math.round(gx * dotGrid * scale) + r;
-    const cy = (gy + yOffGrid) * dotGrid + r;
-    sctx.shadowColor = color;
-    sctx.shadowBlur  = cfg.glow;
-    sctx.fillStyle   = color;
-    sctx.beginPath();
-    sctx.arc(cx, cy, r, 0, Math.PI * 2);
-    sctx.fill();
-  });
-  sctx.shadowBlur = 0;
-
-  // Store actual pixel width and scale for render loop
-  strip._totalRawPx = rawPx;
-  strip._scale      = scale;
-  return strip;
+  return bg;
 }
 
-// ── RENDER LOOP ───────────────────────────────────────────────────────────────
+// ── RENDER LOOP (real-time dot drawing — no strip canvas size limit) ──────────
 function drawFrame() {
   rows.forEach((row, ri) => {
-    const { canvas, ctx, dotMap, strip } = row;
-    if (!strip || !dotMap) return;
+    const { canvas, ctx, dotMap, bgCanvas } = row;
+    if (!dotMap) return;
     const W       = canvas.width;
     const H       = canvas.height;
-    const totalPx = strip.width;
+    const dotGrid = cfg.dotSize + cfg.dotGap;
+    const r       = cfg.dotSize / 2;
+    const totalPx = dotMap.totalGridW * dotGrid;
     if (totalPx <= 0) return;
 
     const prevOffset = row.offset;
     const spd = cfg.speed * (ri === 1 ? 0.85 : ri === 2 ? 1.15 : 1);
     row.offset = (row.offset + spd) % totalPx;
 
-    // Voice: fire when ticker left edge enters from right (row 0 only)
+    // Voice: fire when ticker left edge scrolls onto screen from right (row 0 only)
     if (ri === 0 && dotMap.tickerMarkers) {
-      const dotGrid = cfg.dotSize + cfg.dotGap;
-      const sc      = strip._scale || 1;
       dotMap.tickerMarkers.forEach(({ sym, startGridX }) => {
-        const px    = Math.round(startGridX * dotGrid * sc);
+        const px    = startGridX * dotGrid;
         const xNow  = ((px - row.offset)  % totalPx + totalPx) % totalPx;
         const xPrev = ((px - prevOffset)   % totalPx + totalPx) % totalPx;
         if (xPrev > W && xNow <= W) speakTicker(sym);
       });
     }
 
-    // Tile strip seamlessly: draw at -offset, -offset+totalPx, -offset+2*totalPx
-    ctx.fillStyle = cfg.bgColor;
-    ctx.fillRect(0, 0, W, H);
-    for (let rep = 0; rep * totalPx - row.offset < W + totalPx; rep++) {
-      ctx.drawImage(strip, rep * totalPx - row.offset, 0);
+    // Draw unlit background
+    if (bgCanvas && bgCanvas.width === W && bgCanvas.height === H) {
+      ctx.drawImage(bgCanvas, 0, 0);
+    } else {
+      ctx.fillStyle = cfg.bgColor;
+      ctx.fillRect(0, 0, W, H);
     }
+
+    // Vertical centre: align CHAR_ROWS rows in the middle of canvas
+    const charPx  = CHAR_ROWS * dotGrid;
+    const yOffPx  = Math.max(0, Math.floor((H - charPx) / 2));
+    const yOff    = Math.floor(yOffPx / dotGrid) * dotGrid; // snap to grid
+
+    // Collect visible lit dots grouped by color (batch draw for performance)
+    const groups = {};
+    dotMap.allDots.forEach(({ gx, gy, color }) => {
+      const baseX    = gx * dotGrid - row.offset;
+      const repStart = Math.floor((-r - baseX) / totalPx);
+      const repEnd   = Math.ceil((W + r - baseX) / totalPx);
+      for (let rep = repStart; rep <= repEnd; rep++) {
+        const x = baseX + rep * totalPx;
+        if (x + r >= -r && x - r <= W) {
+          if (!groups[color]) groups[color] = [];
+          groups[color].push(x + r, yOff + gy * dotGrid + r);
+        }
+      }
+    });
+
+    // Draw each color in one batched path (one shadowBlur state change per color)
+    Object.entries(groups).forEach(([color, pts]) => {
+      ctx.shadowColor = color;
+      ctx.shadowBlur  = cfg.glow;
+      ctx.fillStyle   = color;
+      ctx.beginPath();
+      for (let i = 0; i < pts.length; i += 2) {
+        ctx.moveTo(pts[i] + r, pts[i + 1]);
+        ctx.arc(pts[i], pts[i + 1], r, 0, Math.PI * 2);
+      }
+      ctx.fill();
+    });
+    ctx.shadowBlur = 0;
   });
   animId = requestAnimationFrame(drawFrame);
 }
@@ -713,19 +714,19 @@ function rebuildLED() {
     canvas.width  = rect.width  || window.innerWidth;
     canvas.height = rect.height || Math.floor((window.innerHeight - 50) / numRows);
 
-    const ctx    = canvas.getContext('2d');
-    const dotMap = buildTickerDotMap();
-    const strip  = buildStrip(dotMap, canvas.height);
+    const ctx      = canvas.getContext('2d');
+    const dotMap   = buildTickerDotMap();
+    const bgCanvas = buildBgCanvas(canvas.width, canvas.height);
 
-    rows.push({ canvas, ctx, offset: ri * 300, dotMap, strip });
+    rows.push({ canvas, ctx, offset: ri * 300, dotMap, bgCanvas });
   }
 
   window.onresize = () => {
     rows.forEach(row => {
       row.canvas.width  = row.canvas.offsetWidth  || window.innerWidth;
       row.canvas.height = row.canvas.offsetHeight || 100;
-      row.dotMap = buildTickerDotMap();
-      row.strip  = buildStrip(row.dotMap, row.canvas.height);
+      row.dotMap   = buildTickerDotMap();
+      row.bgCanvas = buildBgCanvas(row.canvas.width, row.canvas.height);
     });
   };
 
@@ -797,7 +798,7 @@ function importCSV(input) {
 }
 
 function resetDefaults() {
-  cfg.dotSize=5; cfg.dotGap=2; cfg.glow=18; cfg.speed=1.5;
+  cfg.dotSize=12; cfg.dotGap=2; cfg.glow=18; cfg.speed=1.5;
   cfg.font="'Share Tech Mono', monospace";
   cfg.bgColor='#000000'; cfg.symColor='#ffffff'; cfg.priceColor='#00e5ff';
   cfg.upColor='#00ff88'; cfg.downColor='#ff3b3b'; cfg.dimColor='#1a1a1a'; cfg.divColor='#e65c00';
