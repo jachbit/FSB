@@ -570,7 +570,14 @@ function toggleVoice() {
 }
 
 // ── RENDER LOOP ───────────────────────────────────────────────────────────────
-function drawFrame() {
+let _lastTs = null;
+
+function drawFrame(ts) {
+  // Time-based delta: speed is in px/s, independent of frame rate
+  const dt = _lastTs === null ? 0 : Math.min((ts - _lastTs) / 1000, 0.1);
+  _lastTs = ts;
+  const pxPerSec = cfg.speed * 90; // speed=1 → 90px/s
+
   rows.forEach((row, ri) => {
     const { canvas, ctx, tickerData } = row;
     if (!tickerData) return;
@@ -579,8 +586,8 @@ function drawFrame() {
     const W = canvas.width, H = canvas.height;
 
     const prevOffset = row.offset;
-    const spd = cfg.speed * (ri === 1 ? 0.85 : ri === 2 ? 1.15 : 1);
-    row.offset = (row.offset + spd) % totalWidth;
+    const rowMult = ri === 1 ? 0.85 : ri === 2 ? 1.15 : 1;
+    row.offset = (row.offset + pxPerSec * rowMult * dt) % totalWidth;
 
     // Voice: fire when ticker left edge enters screen from right (row 0 only)
     if (ri === 0) {
@@ -599,15 +606,22 @@ function drawFrame() {
     ctx.textBaseline = 'middle';
     const yMid = H / 2;
 
-    // Draw each segment, tiling for seamless loop
+    // Draw only visible segments (skip anything fully off-screen)
     segments.forEach(({ text, color, x, w }) => {
-      const baseX    = x - row.offset;
-      const repStart = Math.floor(-baseX / totalWidth);
-      const repEnd   = Math.ceil((W - baseX) / totalWidth);
-      ctx.fillStyle  = color;
-      for (let rep = repStart; rep <= repEnd; rep++) {
+      const baseX = x - row.offset;
+      // How many full strips fit: check baseX and baseX+totalWidth
+      for (let rep = 0; rep <= 1; rep++) {
         const dx = baseX + rep * totalWidth;
-        if (dx + w > 0 && dx < W) ctx.fillText(text, dx, yMid);
+        if (dx + w > 0 && dx < W) {
+          ctx.fillStyle = color;
+          ctx.fillText(text, dx, yMid);
+        }
+      }
+      // Also check negative rep for segments near the wrap point
+      const dxNeg = baseX - totalWidth;
+      if (dxNeg + w > 0 && dxNeg < W) {
+        ctx.fillStyle = color;
+        ctx.fillText(text, dxNeg, yMid);
       }
     });
   });
