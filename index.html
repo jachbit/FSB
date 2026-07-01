@@ -445,7 +445,7 @@ async function fetchAll() {
   // Refresh ticker segment data in-place — do NOT reset offsets
   if (rows.length > 0) {
     rows.forEach(row => {
-      row.tickerData = cfg.ledMode ? buildLEDItems() : buildTickerItems(row.ctx);
+      row.tickerData = cfg.ledMode ? buildLEDItems(row.canvas.height) : buildTickerItems(row.ctx);
     });
   } else {
     rebuildLED();
@@ -512,7 +512,7 @@ function buildTickerItems(ctx) {
 }
 
 // ── LED DOT-MATRIX ENGINE ─────────────────────────────────────────────────────
-const CHAR_ROWS = 11; // dot rows per character — more rows = finer resolution
+const CHAR_ROWS = 7; // dot rows per character
 
 function textToDots(text, dotGrid, font) {
   const cellH    = CHAR_ROWS * dotGrid;
@@ -541,8 +541,9 @@ function textToDots(text, dotGrid, font) {
   return { dots, gridW };
 }
 
-function buildLEDItems() {
-  const dotGrid = cfg.dotSize + cfg.dotGap;
+function buildLEDItems(canvasH) {
+  // Auto-size: fill ~90% of banner height across CHAR_ROWS dot rows
+  const dotGrid = Math.max(6, Math.floor(canvasH * 0.90 / CHAR_ROWS));
   const GAP     = Math.max(4, Math.round(50 / dotGrid)); // grid columns between tickers
   const font    = cfg.font;
 
@@ -821,7 +822,7 @@ function rebuildLED() {
     canvas.height = rect.height || Math.floor((window.innerHeight - 50) / numRows);
 
     const ctx        = canvas.getContext('2d');
-    const tickerData = cfg.ledMode ? buildLEDItems() : buildTickerItems(ctx);
+    const tickerData = cfg.ledMode ? buildLEDItems(canvas.height) : buildTickerItems(ctx);
 
     rows.push({ canvas, ctx, offset: ri * 300, tickerData });
   }
@@ -830,7 +831,7 @@ function rebuildLED() {
     rows.forEach(row => {
       row.canvas.width  = row.canvas.offsetWidth  || window.innerWidth;
       row.canvas.height = row.canvas.offsetHeight || 100;
-      row.tickerData = cfg.ledMode ? buildLEDItems() : buildTickerItems(row.ctx);
+      row.tickerData = cfg.ledMode ? buildLEDItems(row.canvas.height) : buildTickerItems(row.ctx);
     });
   };
 
