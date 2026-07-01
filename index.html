@@ -56,14 +56,14 @@
     font-family: 'Orbitron', sans-serif;
   }
   #last-update { font-size: 13px; color: #ffffff; font-family: 'Share Tech Mono', monospace; font-weight: 700; }
-  #gear-btn {
+  #gear-btn, #voice-btn {
     background: none; border: 2px solid #ffffff;
     color: #ffffff; cursor: pointer;
     border-radius: 4px; padding: 3px 10px;
     font-size: 18px; font-weight: 700;
     transition: border-color .2s, color .2s;
   }
-  #gear-btn:hover { border-color: var(--orange); color: var(--orange); }
+  #gear-btn:hover, #voice-btn:hover { border-color: var(--orange); color: var(--orange); }
 
   /* ── CANVAS AREA ── */
   #banner-wrap {
@@ -211,6 +211,7 @@
     <span id="clock">--:--:-- --</span>
     <span class="badge">LITE</span>
     <span id="last-update">NOT LOADED</span>
+    <button id="voice-btn" onclick="toggleVoice()" title="Toggle voice announcements">🔇</button>
     <button id="gear-btn" onclick="togglePanel()">⚙</button>
   </div>
 </div>
@@ -485,15 +486,69 @@ function buildTickerDotMap(canvasH) {
 
   // Layout segments left-to-right, collecting flat dot list with absolute x
   const allDots = [];
+  const tickerCenters = []; // [{sym, gridX}] — center x of each ticker's symbol
   let curX = 0;
-  segments.forEach(seg => {
-    seg.dots.forEach(([gx, gy]) => {
-      allDots.push({ gx: gx + curX, gy, color: seg.color });
-    });
-    curX += seg.gridW + gapDots;
+  let segIdx = 0;
+  tickers.forEach((sym, ti) => {
+    // Each ticker = sym + space + price + space + chg + divider = 6 segments
+    const numSegs = 6;
+    let tickerStart = curX;
+    for (let s = 0; s < numSegs; s++) {
+      const seg = segments[segIdx + s];
+      if (!seg) break;
+      seg.dots.forEach(([gx, gy]) => {
+        allDots.push({ gx: gx + curX, gy, color: seg.color });
+      });
+      curX += seg.gridW + gapDots;
+    }
+    tickerCenters.push({ sym, gridX: Math.floor((tickerStart + curX) / 2) });
+    segIdx += numSegs;
   });
 
-  return { allDots, totalGridW: curX };
+  return { allDots, totalGridW: curX, tickerCenters };
+}
+
+// ── VOICE ENGINE ─────────────────────────────────────────────────────────────
+let voiceOn = false;
+let lastSpoken = '';
+
+function speakTicker(sym) {
+  if (!voiceOn || !window.speechSynthesis) return;
+  const d = quoteData[sym];
+  if (!d) return;
+
+  // Build natural speech text
+  const names = {
+    'SPY':'S P Y','QQQ':'Q Q Q','AAPL':'Apple','NVDA':'Nvidia','TSLA':'Tesla',
+    'MSFT':'Microsoft','AMZN':'Amazon','META':'Meta','GOOGL':'Google','AMD':'A M D',
+    'PLTR':'Palantir','SMCI':'Super Micro','BTC-USD':'Bitcoin',
+    '^GSPC':'S&P 500','^DJI':'Dow Jones','^VIX':'VIX','GLD':'Gold',
+    'SLV':'Silver','USO':'Oil','TLT':'T L T',
+  };
+  const name   = names[sym] || sym.replace('^','').replace('-USD','');
+  const dir    = d.chg > 0 ? 'up' : d.chg < 0 ? 'down' : 'unchanged';
+  const pStr   = d.price.toFixed(2);
+  const pctStr = Math.abs(d.pct).toFixed(1);
+  const text   = `${name} — ${pStr} — ${dir} ${pctStr} percent`;
+
+  if (text === lastSpoken) return;
+  lastSpoken = text;
+
+  window.speechSynthesis.cancel();
+  const utt  = new SpeechSynthesisUtterance(text);
+  utt.rate   = 1.1;
+  utt.pitch  = 1.0;
+  utt.volume = 1.0;
+  window.speechSynthesis.speak(utt);
+}
+
+function toggleVoice() {
+  voiceOn = !voiceOn;
+  const btn = document.getElementById('voice-btn');
+  btn.textContent  = voiceOn ? '🔊' : '🔇';
+  btn.style.borderColor = voiceOn ? 'var(--orange)' : '#fff';
+  btn.style.color       = voiceOn ? 'var(--orange)' : '#fff';
+  if (!voiceOn) window.speechSynthesis.cancel();
 }
 
 // ── RENDER LOOP ───────────────────────────────────────────────────────────────
@@ -526,7 +581,20 @@ function drawFrame() {
     if (!dotMap) return;
 
     // Advance offset
+    const prevOffset = row.offset;
     row.offset = (row.offset + cfg.speed * (ri === 1 ? 0.85 : ri === 2 ? 1.15 : 1)) % (dotMap.totalGridW * dotGrid);
+
+    // Voice: detect which ticker just crossed screen center (row 0 only)
+    if (ri === 0 && dotMap.tickerCenters) {
+      const centerPx = W / 2;
+      dotMap.tickerCenters.forEach(({ sym, gridX }) => {
+        const x = gridX * dotGrid - row.offset;
+        const xPrev = gridX * dotGrid - prevOffset;
+        if ((xPrev > centerPx && x <= centerPx) || (xPrev - dotMap.totalGridW * dotGrid > centerPx && x - dotMap.totalGridW * dotGrid <= centerPx)) {
+          speakTicker(sym);
+        }
+      });
+    }
 
     // Draw lit dots
     dotMap.allDots.forEach(({ gx, gy, color }) => {
