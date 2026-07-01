@@ -484,7 +484,7 @@ function buildTickerDotMap(canvasH) {
   let segIdx = 0;
   tickers.forEach((sym, ti) => {
     const tickerStart = curX;
-    const count = tickerSegCounts[ti];
+    const count = segmentCounts[ti];
     for (let s = 0; s < count; s++) {
       const seg = segments[segIdx + s];
       if (!seg) break;
