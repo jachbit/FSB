@@ -462,7 +462,11 @@ function buildTickerItems(ctx) {
 
   tickers.forEach(sym => {
     const d    = quoteData[sym];
-    const disp = sym.replace('^','').replace('-USD',' USD');
+    const DISP_NAMES = {
+      '^GSPC':'S&P 500','^DJI':'DOW','^VIX':'VIX',
+      'BTC-USD':'BTC','ETH-USD':'ETH',
+    };
+    const disp = DISP_NAMES[sym] || sym.replace('^','').replace('-USD',' USD');
     markers.push({ sym, x: curX });
 
     // Symbol
