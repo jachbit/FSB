@@ -520,25 +520,25 @@ function buildTickerDotMap(canvasH) {
   const dotGrid  = cfg.dotSize + cfg.dotGap;
   const gapGrid  = Math.max(4, Math.floor(50 / dotGrid));
   const allDots  = [];
-  const tickerCenters = [];
+  const tickerMarkers = []; // { sym, startGridX } — left edge, used for voice trigger
   let curX = 0;
 
   tickers.forEach(sym => {
-    const item = buildTickerItem(sym, dotGrid, canvasH);
-    const centerGridX = curX + Math.floor(item.gridW / 2);
+    const item       = buildTickerItem(sym, dotGrid, canvasH);
+    const startGridX = curX;
     item.dots.forEach(({ gx, gy, color }) => {
       allDots.push({ gx: gx + curX, gy, color });
     });
-    tickerCenters.push({ sym, gridX: centerGridX });
+    tickerMarkers.push({ sym, startGridX });
     curX += item.gridW + gapGrid;
   });
 
-  return { allDots, totalGridW: curX, tickerCenters };
+  return { allDots, totalGridW: curX, tickerMarkers };
 }
 
 // ── VOICE ENGINE ─────────────────────────────────────────────────────────────
 let voiceOn   = false;
-let lastSpoken = '';
+const spokenAt = {}; // sym → timestamp, prevents double-firing
 let voices    = [];
 let voiceIdx  = 0;
 let voiceVol  = 1.0;
@@ -574,8 +574,9 @@ function speakTicker(sym) {
   const pStr   = d.price.toFixed(2);
   const pctStr = Math.abs(d.pct).toFixed(1);
   const text   = `${name}. ${pStr}. ${dir} ${pctStr} percent`;
-  if (text === lastSpoken) return;
-  lastSpoken = text;
+  const now    = Date.now();
+  if (spokenAt[sym] && now - spokenAt[sym] < 8000) return; // 8s cooldown per ticker
+  spokenAt[sym] = now;
   window.speechSynthesis.cancel();
   const utt  = new SpeechSynthesisUtterance(text);
   if (voices[voiceIdx]) utt.voice = voices[voiceIdx];
@@ -634,24 +635,24 @@ function drawFrame() {
     const prevOffset = row.offset;
     row.offset = (row.offset + cfg.speed * (ri === 1 ? 0.85 : ri === 2 ? 1.15 : 1)) % (dotMap.totalGridW * dotGrid);
 
-    // Voice sync: speak when ticker center crosses screen center (row 0 only)
-    if (ri === 0 && dotMap.tickerCenters) {
-      const centerPx  = W / 2;
-      const totalPx   = dotMap.totalGridW * dotGrid;
-      dotMap.tickerCenters.forEach(({ sym, gridX }) => {
-        const xNow  = (gridX * dotGrid - row.offset + totalPx) % totalPx;
-        const xPrev = (gridX * dotGrid - prevOffset  + totalPx) % totalPx;
-        // Trigger when crossing center from right to left
-        if (xPrev > centerPx && xNow <= centerPx) speakTicker(sym);
+    // Voice: fire when ticker's left edge enters from the right (row 0 only)
+    if (ri === 0 && dotMap.tickerMarkers) {
+      const totalPx = dotMap.totalGridW * dotGrid;
+      dotMap.tickerMarkers.forEach(({ sym, startGridX }) => {
+        // Normalise positions into [0, totalPx)
+        const xNow  = ((startGridX * dotGrid - row.offset) % totalPx + totalPx) % totalPx;
+        const xPrev = ((startGridX * dotGrid - prevOffset) % totalPx + totalPx) % totalPx;
+        // Ticker enters from right: its normalised x just crossed W coming downward
+        if (xPrev > W && xNow <= W) speakTicker(sym);
       });
     }
 
-    // Draw lit dots
+    // Draw lit dots — 3 copies for a bulletproof seamless loop
+    const totalPx = dotMap.totalGridW * dotGrid;
     dotMap.allDots.forEach(({ gx, gy, color }) => {
       const rawX = gx * dotGrid - row.offset;
-      // Wrap — draw twice for seamless loop
-      for (let rep = 0; rep < 2; rep++) {
-        const cx = rawX + rep * dotMap.totalGridW * dotGrid + r;
+      for (let rep = 0; rep < 3; rep++) {
+        const cx = rawX + rep * totalPx + r;
         if (cx < -dotGrid || cx > W + dotGrid) continue;
         const cy = gy * dotGrid + r;
         ctx.shadowColor  = color;
