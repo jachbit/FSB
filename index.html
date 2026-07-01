@@ -667,7 +667,8 @@ function rebuildLED() {
     });
   };
 
-  drawFrame();
+  _lastTs = null;
+  animId = requestAnimationFrame(drawFrame);
 }
 
 // ── SETTINGS HELPERS ─────────────────────────────────────────────────────────
