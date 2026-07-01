@@ -449,63 +449,60 @@ async function fetchAll() {
 }
 
 // ── LED DOT MATRIX ───────────────────────────────────────────────────────────
-// Build a dot-map for a given text string at a given LED grid size
-function textToDots(text, dotGrid, canvasH) {
-  const rows   = Math.floor(canvasH / dotGrid);
-  const cellH  = rows * dotGrid;
-  const oc     = document.createElement('canvas');
-  oc.height    = cellH;
-  const octx   = oc.getContext('2d');
-  const fontSize = Math.round(cellH * 0.78);
-  octx.font    = `900 ${fontSize}px ${cfg.font}`;
-  const tw     = octx.measureText(text).width;
-  oc.width     = Math.ceil(tw) + dotGrid * 2;
-  // Re-apply font after resize
-  octx.font    = `900 ${fontSize}px ${cfg.font}`;
-  octx.fillStyle = '#fff';
-  octx.fillText(text, dotGrid, fontSize * 0.92);
+// Fixed LED matrix rows — like a real sign (7 dot rows per character).
+// Dot SIZE controls physical scale; character row count stays constant.
+const CHAR_ROWS = 7;
 
-  const imgData = octx.getImageData(0, 0, oc.width, oc.height);
-  const dots = [];
-  for (let gy = 0; gy < rows; gy++) {
+function textToDots(text, dotGrid) {
+  const cellH    = CHAR_ROWS * dotGrid;
+  const fontSize = Math.round(cellH * 0.88);
+  const oc       = document.createElement('canvas');
+  oc.height      = cellH;
+  const octx     = oc.getContext('2d');
+  octx.font      = `900 ${fontSize}px ${cfg.font}`;
+  const tw       = octx.measureText(text).width;
+  oc.width       = Math.max(1, Math.ceil(tw) + dotGrid * 2);
+  octx.font      = `900 ${fontSize}px ${cfg.font}`;
+  octx.fillStyle = '#fff';
+  octx.fillText(text, dotGrid, fontSize * 0.9);
+
+  const imgData  = octx.getImageData(0, 0, oc.width, oc.height);
+  const dots     = [];
+  for (let gy = 0; gy < CHAR_ROWS; gy++) {
     for (let gx = 0; gx < Math.ceil(oc.width / dotGrid); gx++) {
       const px = gx * dotGrid + Math.floor(dotGrid / 2);
       const py = gy * dotGrid + Math.floor(dotGrid / 2);
       if (px >= oc.width || py >= oc.height) continue;
-      const i  = (py * oc.width + px) * 4;
-      if (imgData.data[i + 3] > 80) {
-        dots.push([gx, gy]);
-      }
+      if (imgData.data[(py * oc.width + px) * 4 + 3] > 80) dots.push([gx, gy]);
     }
   }
   return { dots, gridW: Math.ceil(oc.width / dotGrid) };
 }
 
-// Build dot array for one ticker item, returns {dots, gridW}
-function buildTickerItem(sym, dotGrid, canvasH) {
+function buildTickerItem(sym, dotGrid) {
   const d    = quoteData[sym];
   const disp = sym.replace('^','').replace('-USD',' USD');
   const dir  = d ? (d.chg > 0 ? 'up' : d.chg < 0 ? 'down' : 'flat') : 'na';
   const parts = [];
 
-  parts.push({ m: textToDots(disp, dotGrid, canvasH), c: cfg.symColor });
+  parts.push({ m: textToDots(disp, dotGrid), c: cfg.symColor });
   parts.push({ m: { dots:[], gridW: 2 }, c: '#000' });
 
   if (d) {
     const pStr = d.price >= 1000
       ? d.price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})
       : d.price.toFixed(2);
-    parts.push({ m: textToDots(pStr, dotGrid, canvasH), c: cfg.priceColor });
-    parts.push({ m: { dots:[], gridW: 1 }, c: '#000' });
+    parts.push({ m: textToDots(pStr, dotGrid), c: cfg.priceColor });
+    parts.push({ m: { dots:[], gridW: 3 }, c: '#000' }); // gap between price and change
     const sign  = d.chg >= 0 ? '+' : '';
     const arrow = d.chg > 0 ? '▲' : d.chg < 0 ? '▼' : '■';
     const cStr  = `${arrow}${sign}${d.chg.toFixed(2)} (${sign}${d.pct.toFixed(2)}%)`;
-    parts.push({ m: textToDots(cStr, dotGrid, canvasH), c: dir==='up'?cfg.upColor:dir==='down'?cfg.downColor:'#888' });
+    parts.push({ m: textToDots(cStr, dotGrid), c: dir==='up'?cfg.upColor:dir==='down'?cfg.downColor:'#888' });
   } else {
-    parts.push({ m: textToDots('---', dotGrid, canvasH), c: '#444' });
+    parts.push({ m: textToDots('---', dotGrid), c: '#444' });
   }
 
-  parts.push({ m: textToDots(' | ', dotGrid, canvasH), c: cfg.divColor });
+  parts.push({ m: textToDots(' | ', dotGrid), c: cfg.divColor });
 
   const dots = [];
   let x = 0;
@@ -516,15 +513,15 @@ function buildTickerItem(sym, dotGrid, canvasH) {
   return { dots, gridW: x };
 }
 
-function buildTickerDotMap(canvasH) {
-  const dotGrid  = cfg.dotSize + cfg.dotGap;
-  const gapGrid  = Math.max(4, Math.floor(50 / dotGrid));
-  const allDots  = [];
-  const tickerMarkers = []; // { sym, startGridX } — left edge, used for voice trigger
+function buildTickerDotMap() {
+  const dotGrid       = cfg.dotSize + cfg.dotGap;
+  const gapGrid       = Math.max(6, Math.floor(60 / dotGrid));
+  const allDots       = [];
+  const tickerMarkers = [];
   let curX = 0;
 
   tickers.forEach(sym => {
-    const item       = buildTickerItem(sym, dotGrid, canvasH);
+    const item       = buildTickerItem(sym, dotGrid);
     const startGridX = curX;
     item.dots.forEach(({ gx, gy, color }) => {
       allDots.push({ gx: gx + curX, gy, color });
@@ -573,7 +570,7 @@ function speakTicker(sym) {
   const dir    = d.chg > 0 ? 'up' : d.chg < 0 ? 'down' : 'unchanged';
   const pStr   = d.price.toFixed(2);
   const pctStr = Math.abs(d.pct).toFixed(1);
-  const text   = `${name}. ${pStr}. ${dir} ${pctStr} percent`;
+  const text   = `${name}... ${pStr}...... ${dir}...... ${pctStr} percent`;
   const now    = Date.now();
   if (spokenAt[sym] && now - spokenAt[sym] < 8000) return; // 8s cooldown per ticker
   spokenAt[sym] = now;
@@ -608,18 +605,27 @@ function toggleVoice() {
 function buildStrip(dotMap, canvasH) {
   const dotGrid  = cfg.dotSize + cfg.dotGap;
   const r        = cfg.dotSize / 2;
-  const totalPx  = Math.max(1, Math.ceil(dotMap.totalGridW * dotGrid));
+  // Cap strip width to 8192px max to avoid GPU texture limits
+  const rawPx    = Math.ceil(dotMap.totalGridW * dotGrid);
+  const totalPx  = Math.min(rawPx, 8192);
+  const scale    = totalPx / rawPx; // if capped, scale down positions
 
   const strip    = document.createElement('canvas');
   strip.width    = totalPx;
   strip.height   = canvasH;
   const sctx     = strip.getContext('2d');
 
+  // Vertical centre offset so CHAR_ROWS dots sit in the middle of the canvas
+  const charPx   = CHAR_ROWS * dotGrid;
+  const yOff     = Math.max(0, Math.floor((canvasH - charPx) / 2));
+  // Round to nearest dot-grid line
+  const yOffGrid = Math.floor(yOff / dotGrid);
+
   // Background
   sctx.fillStyle = cfg.bgColor;
   sctx.fillRect(0, 0, totalPx, canvasH);
 
-  // Unlit dots (LED panel texture)
+  // Unlit dots (LED panel texture — full canvas)
   sctx.fillStyle = cfg.dimColor;
   const gridCols = Math.ceil(totalPx / dotGrid) + 1;
   const gridRows = Math.ceil(canvasH  / dotGrid);
@@ -631,10 +637,10 @@ function buildStrip(dotMap, canvasH) {
     }
   }
 
-  // Lit dots with glow
+  // Lit dots with glow, vertically centred
   dotMap.allDots.forEach(({ gx, gy, color }) => {
-    const cx = gx * dotGrid + r;
-    const cy = gy * dotGrid + r;
+    const cx = Math.round(gx * dotGrid * scale) + r;
+    const cy = (gy + yOffGrid) * dotGrid + r;
     sctx.shadowColor = color;
     sctx.shadowBlur  = cfg.glow;
     sctx.fillStyle   = color;
@@ -643,6 +649,10 @@ function buildStrip(dotMap, canvasH) {
     sctx.fill();
   });
   sctx.shadowBlur = 0;
+
+  // Store actual pixel width and scale for render loop
+  strip._totalRawPx = rawPx;
+  strip._scale      = scale;
   return strip;
 }
 
@@ -663,8 +673,9 @@ function drawFrame() {
     // Voice: fire when ticker left edge enters from right (row 0 only)
     if (ri === 0 && dotMap.tickerMarkers) {
       const dotGrid = cfg.dotSize + cfg.dotGap;
+      const sc      = strip._scale || 1;
       dotMap.tickerMarkers.forEach(({ sym, startGridX }) => {
-        const px    = startGridX * dotGrid;
+        const px    = Math.round(startGridX * dotGrid * sc);
         const xNow  = ((px - row.offset)  % totalPx + totalPx) % totalPx;
         const xPrev = ((px - prevOffset)   % totalPx + totalPx) % totalPx;
         if (xPrev > W && xNow <= W) speakTicker(sym);
@@ -703,7 +714,7 @@ function rebuildLED() {
     canvas.height = rect.height || Math.floor((window.innerHeight - 50) / numRows);
 
     const ctx    = canvas.getContext('2d');
-    const dotMap = buildTickerDotMap(canvas.height);
+    const dotMap = buildTickerDotMap();
     const strip  = buildStrip(dotMap, canvas.height);
 
     rows.push({ canvas, ctx, offset: ri * 300, dotMap, strip });
@@ -713,7 +724,7 @@ function rebuildLED() {
     rows.forEach(row => {
       row.canvas.width  = row.canvas.offsetWidth  || window.innerWidth;
       row.canvas.height = row.canvas.offsetHeight || 100;
-      row.dotMap = buildTickerDotMap(row.canvas.height);
+      row.dotMap = buildTickerDotMap();
       row.strip  = buildStrip(row.dotMap, row.canvas.height);
     });
   };
