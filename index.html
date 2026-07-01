@@ -602,71 +602,82 @@ function toggleVoice() {
   if (!voiceOn) window.speechSynthesis.cancel();
 }
 
+// ── PRE-RENDER STRIP ─────────────────────────────────────────────────────────
+// Renders the full ticker sequence onto one wide offscreen canvas.
+// drawFrame just tiles it with drawImage — guaranteed seamless loop.
+function buildStrip(dotMap, canvasH) {
+  const dotGrid  = cfg.dotSize + cfg.dotGap;
+  const r        = cfg.dotSize / 2;
+  const totalPx  = Math.max(1, Math.ceil(dotMap.totalGridW * dotGrid));
+
+  const strip    = document.createElement('canvas');
+  strip.width    = totalPx;
+  strip.height   = canvasH;
+  const sctx     = strip.getContext('2d');
+
+  // Background
+  sctx.fillStyle = cfg.bgColor;
+  sctx.fillRect(0, 0, totalPx, canvasH);
+
+  // Unlit dots (LED panel texture)
+  sctx.fillStyle = cfg.dimColor;
+  const gridCols = Math.ceil(totalPx / dotGrid) + 1;
+  const gridRows = Math.ceil(canvasH  / dotGrid);
+  for (let gy = 0; gy < gridRows; gy++) {
+    for (let gx = 0; gx < gridCols; gx++) {
+      sctx.beginPath();
+      sctx.arc(gx * dotGrid + r, gy * dotGrid + r, r * 0.75, 0, Math.PI * 2);
+      sctx.fill();
+    }
+  }
+
+  // Lit dots with glow
+  dotMap.allDots.forEach(({ gx, gy, color }) => {
+    const cx = gx * dotGrid + r;
+    const cy = gy * dotGrid + r;
+    sctx.shadowColor = color;
+    sctx.shadowBlur  = cfg.glow;
+    sctx.fillStyle   = color;
+    sctx.beginPath();
+    sctx.arc(cx, cy, r, 0, Math.PI * 2);
+    sctx.fill();
+  });
+  sctx.shadowBlur = 0;
+  return strip;
+}
+
 // ── RENDER LOOP ───────────────────────────────────────────────────────────────
 function drawFrame() {
-  const dotGrid = cfg.dotSize + cfg.dotGap;
-  const r       = cfg.dotSize / 2;
-
   rows.forEach((row, ri) => {
-    const { canvas, ctx, dotMap } = row;
-    const W = canvas.width, H = canvas.height;
+    const { canvas, ctx, dotMap, strip } = row;
+    if (!strip || !dotMap) return;
+    const W       = canvas.width;
+    const H       = canvas.height;
+    const totalPx = strip.width;
+    if (totalPx <= 0) return;
 
-    // Background
-    ctx.fillStyle = cfg.bgColor;
-    ctx.fillRect(0, 0, W, H);
-
-    // Draw unlit background dots (LED panel texture)
-    ctx.fillStyle = cfg.dimColor;
-    const gridCols = Math.ceil(W / dotGrid) + 2;
-    const gridRows = Math.ceil(H / dotGrid);
-    for (let gy = 0; gy < gridRows; gy++) {
-      for (let gx = 0; gx < gridCols; gx++) {
-        const cx = gx * dotGrid + r;
-        const cy = gy * dotGrid + r;
-        ctx.beginPath();
-        ctx.arc(cx, cy, r * 0.75, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-
-    if (!dotMap) return;
-
-    // Advance offset
     const prevOffset = row.offset;
-    row.offset = (row.offset + cfg.speed * (ri === 1 ? 0.85 : ri === 2 ? 1.15 : 1)) % (dotMap.totalGridW * dotGrid);
+    const spd = cfg.speed * (ri === 1 ? 0.85 : ri === 2 ? 1.15 : 1);
+    row.offset = (row.offset + spd) % totalPx;
 
-    // Voice: fire when ticker's left edge enters from the right (row 0 only)
+    // Voice: fire when ticker left edge enters from right (row 0 only)
     if (ri === 0 && dotMap.tickerMarkers) {
-      const totalPx = dotMap.totalGridW * dotGrid;
+      const dotGrid = cfg.dotSize + cfg.dotGap;
       dotMap.tickerMarkers.forEach(({ sym, startGridX }) => {
-        // Normalise positions into [0, totalPx)
-        const xNow  = ((startGridX * dotGrid - row.offset) % totalPx + totalPx) % totalPx;
-        const xPrev = ((startGridX * dotGrid - prevOffset) % totalPx + totalPx) % totalPx;
-        // Ticker enters from right: its normalised x just crossed W coming downward
+        const px    = startGridX * dotGrid;
+        const xNow  = ((px - row.offset)  % totalPx + totalPx) % totalPx;
+        const xPrev = ((px - prevOffset)   % totalPx + totalPx) % totalPx;
         if (xPrev > W && xNow <= W) speakTicker(sym);
       });
     }
 
-    // Draw lit dots — 3 copies for a bulletproof seamless loop
-    const totalPx = dotMap.totalGridW * dotGrid;
-    dotMap.allDots.forEach(({ gx, gy, color }) => {
-      const rawX = gx * dotGrid - row.offset;
-      for (let rep = 0; rep < 3; rep++) {
-        const cx = rawX + rep * totalPx + r;
-        if (cx < -dotGrid || cx > W + dotGrid) continue;
-        const cy = gy * dotGrid + r;
-        ctx.shadowColor  = color;
-        ctx.shadowBlur   = cfg.glow;
-        ctx.fillStyle    = color;
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    });
-
-    ctx.shadowBlur = 0;
+    // Tile strip seamlessly: draw at -offset, -offset+totalPx, -offset+2*totalPx
+    ctx.fillStyle = cfg.bgColor;
+    ctx.fillRect(0, 0, W, H);
+    for (let rep = 0; rep * totalPx - row.offset < W + totalPx; rep++) {
+      ctx.drawImage(strip, rep * totalPx - row.offset, 0);
+    }
   });
-
   animId = requestAnimationFrame(drawFrame);
 }
 
@@ -674,44 +685,36 @@ function drawFrame() {
 function rebuildLED() {
   if (animId) cancelAnimationFrame(animId);
 
-  const wrap    = document.getElementById('banner-wrap');
-  const strips  = wrap.querySelectorAll('.rainbow-strip');
-  // Remove old row divs but keep strips
+  const wrap   = document.getElementById('banner-wrap');
+  const strips = wrap.querySelectorAll('.rainbow-strip');
   wrap.querySelectorAll('.led-row').forEach(el => el.remove());
-
   rows = [];
 
   for (let ri = 0; ri < numRows; ri++) {
     const div    = document.createElement('div');
     div.className = 'led-row';
-
     const canvas = document.createElement('canvas');
     canvas.className = 'led-canvas';
     div.appendChild(canvas);
-
-    // Insert before bottom strip
     wrap.insertBefore(div, strips[strips.length - 1]);
 
-    // Size canvas — fall back to window size if layout not ready yet
-    const resizeCanvas = () => {
-      const rect = div.getBoundingClientRect();
-      canvas.width  = rect.width  || window.innerWidth;
-      canvas.height = rect.height || Math.floor((window.innerHeight - 50) / numRows);
-    };
-    resizeCanvas();
+    const rect    = div.getBoundingClientRect();
+    canvas.width  = rect.width  || window.innerWidth;
+    canvas.height = rect.height || Math.floor((window.innerHeight - 50) / numRows);
 
     const ctx    = canvas.getContext('2d');
     const dotMap = buildTickerDotMap(canvas.height);
+    const strip  = buildStrip(dotMap, canvas.height);
 
-    rows.push({ canvas, ctx, offset: ri * 200, dotMap });
+    rows.push({ canvas, ctx, offset: ri * 300, dotMap, strip });
   }
 
-  // Handle window resize
   window.onresize = () => {
     rows.forEach(row => {
-      row.canvas.width  = row.canvas.offsetWidth;
-      row.canvas.height = row.canvas.offsetHeight;
+      row.canvas.width  = row.canvas.offsetWidth  || window.innerWidth;
+      row.canvas.height = row.canvas.offsetHeight || 100;
       row.dotMap = buildTickerDotMap(row.canvas.height);
+      row.strip  = buildStrip(row.dotMap, row.canvas.height);
     });
   };
 
