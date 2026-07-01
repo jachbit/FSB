@@ -439,61 +439,53 @@ function textToDots(text, dotGrid, canvasH) {
 // Build the complete ticker scroll sequence as a dot-map list
 function buildTickerDotMap(canvasH) {
   const dotGrid = cfg.dotSize + cfg.dotGap;
-  const segments = []; // [{dots, gridW, color}]
+  const segments = [];
+  const segmentCounts = []; // actual segment count per ticker
 
-  // Spacer between items
   const gapDots = Math.max(3, Math.floor(40 / dotGrid));
 
   tickers.forEach((sym, i) => {
-    const d     = quoteData[sym];
-    const disp  = sym.replace('^','').replace('-USD',' USD');
-    const dir   = d ? (d.chg > 0 ? 'up' : d.chg < 0 ? 'down' : 'flat') : 'na';
+    const before = segments.length;
+    const d      = quoteData[sym];
+    const disp   = sym.replace('^','').replace('-USD',' USD');
+    const dir    = d ? (d.chg > 0 ? 'up' : d.chg < 0 ? 'down' : 'flat') : 'na';
 
     // Symbol
-    const symMap = textToDots(disp, dotGrid, canvasH);
-    segments.push({ ...symMap, color: cfg.symColor });
-
+    segments.push({ ...textToDots(disp, dotGrid, canvasH), color: cfg.symColor });
     // Space
     segments.push({ dots:[], gridW: 2, color: '#000' });
 
     if (d) {
-      // Price
       const pStr = d.price >= 1000
         ? d.price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})
         : d.price.toFixed(2);
-      const pMap = textToDots(pStr, dotGrid, canvasH);
-      segments.push({ ...pMap, color: cfg.priceColor });
-
-      // Space
+      segments.push({ ...textToDots(pStr, dotGrid, canvasH), color: cfg.priceColor });
       segments.push({ dots:[], gridW: 1, color: '#000' });
-
-      // Change
       const sign  = d.chg >= 0 ? '+' : '';
       const arrow = d.chg > 0 ? '▲' : d.chg < 0 ? '▼' : '■';
       const cStr  = `${arrow}${sign}${d.chg.toFixed(2)} (${sign}${d.pct.toFixed(2)}%)`;
-      const cMap  = textToDots(cStr, dotGrid, canvasH);
       const col   = dir === 'up' ? cfg.upColor : dir === 'down' ? cfg.downColor : '#888';
-      segments.push({ ...cMap, color: col });
+      segments.push({ ...textToDots(cStr, dotGrid, canvasH), color: col });
     } else {
-      const naMap = textToDots('---', dotGrid, canvasH);
-      segments.push({ ...naMap, color: '#333' });
+      segments.push({ ...textToDots('---', dotGrid, canvasH), color: '#333' });
     }
 
     // Divider
-    const divMap = textToDots(' | ', dotGrid, canvasH);
-    segments.push({ ...divMap, color: cfg.divColor });
+    segments.push({ ...textToDots(' | ', dotGrid, canvasH), color: cfg.divColor });
+
+    segmentCounts.push(segments.length - before); // actual count for this ticker
   });
 
-  // Layout segments left-to-right, collecting flat dot list with absolute x
+  // Layout — use actual per-ticker segment counts
+
   const allDots = [];
-  const tickerCenters = []; // [{sym, gridX}] — center x of each ticker's symbol
+  const tickerCenters = [];
   let curX = 0;
   let segIdx = 0;
   tickers.forEach((sym, ti) => {
-    // Each ticker = sym + space + price + space + chg + divider = 6 segments
-    const numSegs = 6;
-    let tickerStart = curX;
-    for (let s = 0; s < numSegs; s++) {
+    const tickerStart = curX;
+    const count = tickerSegCounts[ti];
+    for (let s = 0; s < count; s++) {
       const seg = segments[segIdx + s];
       if (!seg) break;
       seg.dots.forEach(([gx, gy]) => {
@@ -502,7 +494,7 @@ function buildTickerDotMap(canvasH) {
       curX += seg.gridW + gapDots;
     }
     tickerCenters.push({ sym, gridX: Math.floor((tickerStart + curX) / 2) });
-    segIdx += numSegs;
+    segIdx += count;
   });
 
   return { allDots, totalGridW: curX, tickerCenters };
