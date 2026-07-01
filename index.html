@@ -85,20 +85,38 @@
     height: 100%;
   }
 
-  /* Rainbow LED strip */
+  /* Rainbow LED strips */
   .rainbow-strip {
     height: 5px;
     width: 100%;
     background: linear-gradient(90deg,
       #ff0000,#ff6600,#ffff00,#00ff00,#00ffff,#0066ff,#aa00ff,#ff0000);
     background-size: 400% 100%;
-    animation: rainbow 3s linear infinite;
+    animation: rainbow-h 3s linear infinite;
     flex-shrink: 0;
   }
-  @keyframes rainbow {
+  .rainbow-side {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 6px;
+    background: linear-gradient(180deg,
+      #ff0000,#ff6600,#ffff00,#00ff00,#00ffff,#0066ff,#aa00ff,#ff0000);
+    background-size: 100% 400%;
+    animation: rainbow-v 3s linear infinite;
+    z-index: 2;
+  }
+  .rainbow-side.left  { left: 0; }
+  .rainbow-side.right { right: 0; }
+  @keyframes rainbow-h {
     from { background-position: 0% 50%; }
     to   { background-position: 400% 50%; }
   }
+  @keyframes rainbow-v {
+    from { background-position: 50% 0%; }
+    to   { background-position: 50% 400%; }
+  }
+  .rainbow-paused .rainbow-strip,
+  .rainbow-paused .rainbow-side { animation-play-state: paused; }
 
   /* ── SETTINGS PANEL ── */
   #overlay {
@@ -211,6 +229,7 @@
     <span id="clock">--:--:-- --</span>
     <span class="badge">LITE</span>
     <span id="last-update">NOT LOADED</span>
+    <button id="rainbow-btn" onclick="toggleRainbow()" title="Freeze/unfreeze border animation">🌈</button>
     <button id="voice-btn" onclick="toggleVoice()" title="Toggle voice announcements">🔇</button>
     <button id="gear-btn" onclick="togglePanel()">⚙</button>
   </div>
@@ -219,6 +238,8 @@
 <!-- BANNER -->
 <div id="banner-wrap">
   <div class="rainbow-strip"></div>
+  <div class="rainbow-side left"></div>
+  <div class="rainbow-side right"></div>
   <!-- canvas rows injected by JS -->
   <div class="rainbow-strip"></div>
 </div>
@@ -532,6 +553,13 @@ function speakTicker(sym) {
   utt.pitch  = 1.0;
   utt.volume = 1.0;
   window.speechSynthesis.speak(utt);
+}
+
+function toggleRainbow() {
+  const wrap = document.getElementById('banner-wrap');
+  const btn  = document.getElementById('rainbow-btn');
+  const paused = wrap.classList.toggle('rainbow-paused');
+  btn.style.opacity = paused ? '0.4' : '1';
 }
 
 function toggleVoice() {
