@@ -230,7 +230,7 @@
     <span class="badge">LITE</span>
     <span id="last-update">NOT LOADED</span>
     <button id="rainbow-btn" onclick="toggleRainbow()" title="Freeze/unfreeze border animation">🌈</button>
-    <button id="led-btn" onclick="toggleLED()" title="Toggle LED dot-matrix mode" style="background:none;border:2px solid #ffffff;color:#ffffff;cursor:pointer;border-radius:4px;padding:3px 10px;font-size:12px;font-weight:700;font-family:'Share Tech Mono',monospace;transition:border-color .2s,color .2s;">TEXT</button>
+    <button id="led-btn" onclick="toggleLED()" title="Toggle LED dot-matrix mode" style="background:none;border:2px solid var(--orange);color:var(--orange);cursor:pointer;border-radius:4px;padding:3px 10px;font-size:12px;font-weight:700;font-family:'Share Tech Mono',monospace;transition:border-color .2s,color .2s;">LED</button>
     <button id="voice-btn" onclick="toggleVoice()" title="Toggle voice announcements">🔇</button>
     <button id="gear-btn" onclick="togglePanel()">⚙</button>
   </div>
@@ -358,7 +358,7 @@
 <script>
 // ── CONFIG ───────────────────────────────────────────────────────────────────
 const cfg = {
-  ledMode:    false,
+  ledMode:    true,
   dotSize:    12,
   dotGap:     2,
   glow:       18,
@@ -515,27 +515,41 @@ function buildTickerItems(ctx) {
 const CHAR_ROWS = 7; // dot rows per character
 
 function textToDots(text, dotGrid, font) {
-  const cellH    = CHAR_ROWS * dotGrid;
+  // Render at 2× resolution for sharper sampling
+  const scale    = 2;
+  const dg2      = dotGrid * scale;
+  const cellH    = CHAR_ROWS * dg2;
   const fontSize = Math.round(cellH * 0.85);
   const oc       = document.createElement('canvas');
   oc.height      = cellH;
   const octx     = oc.getContext('2d');
   octx.font      = `900 ${fontSize}px ${font}`;
   const tw       = octx.measureText(text).width;
-  oc.width       = Math.max(1, Math.ceil(tw) + dotGrid * 2);
+  oc.width       = Math.max(1, Math.ceil(tw) + dg2 * 2);
   octx.font      = `900 ${fontSize}px ${font}`;
   octx.fillStyle = '#fff';
-  octx.fillText(text, dotGrid, fontSize * 0.88);
+  octx.fillText(text, dg2, fontSize * 0.88);
   const imgData  = octx.getImageData(0, 0, oc.width, oc.height);
+  const W2       = oc.width;
   const dots     = [];
-  const gridW    = Math.ceil(oc.width / dotGrid);
+  const gridW    = Math.ceil(oc.width / dg2);
+  const half     = Math.floor(dg2 / 2);
+  const step     = Math.max(1, Math.floor(dg2 / 5)); // sample 5×5 grid within cell
   for (let gy = 0; gy < CHAR_ROWS; gy++) {
     for (let gx = 0; gx < gridW; gx++) {
-      const px = gx * dotGrid + Math.floor(dotGrid / 2);
-      const py = gy * dotGrid + Math.floor(dotGrid / 2);
-      if (px < oc.width && py < oc.height &&
-          imgData.data[(py * oc.width + px) * 4 + 3] > 80)
-        dots.push([gx, gy]);
+      // Sample a 5×5 area around cell center
+      let lit = 0, total = 0;
+      for (let dy = -2; dy <= 2; dy++) {
+        for (let dx = -2; dx <= 2; dx++) {
+          const px = gx * dg2 + half + dx * step;
+          const py = gy * dg2 + half + dy * step;
+          if (px >= 0 && px < W2 && py >= 0 && py < oc.height) {
+            if (imgData.data[(py * W2 + px) * 4 + 3] > 60) lit++;
+            total++;
+          }
+        }
+      }
+      if (total > 0 && lit / total >= 0.20) dots.push([gx, gy]);
     }
   }
   return { dots, gridW };
