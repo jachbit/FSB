@@ -512,7 +512,7 @@ function buildTickerItems(ctx) {
 }
 
 // ── LED DOT-MATRIX ENGINE ─────────────────────────────────────────────────────
-const CHAR_ROWS = 7; // dot rows per character
+const CHAR_ROWS = 13; // dot rows per character — more rows = finer dot resolution
 
 function textToDots(text, dotGrid, font) {
   // Render at 2× resolution for sharper sampling
@@ -549,7 +549,7 @@ function textToDots(text, dotGrid, font) {
           }
         }
       }
-      if (total > 0 && lit / total >= 0.20) dots.push([gx, gy]);
+      if (total > 0 && lit / total >= 0.12) dots.push([gx, gy]);
     }
   }
   return { dots, gridW };
