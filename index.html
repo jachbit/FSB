@@ -512,8 +512,9 @@ function buildTickerItems(ctx) {
 }
 
 // ── LED DOT-MATRIX ENGINE ─────────────────────────────────────────────────────
-// Fixed small dotGrid — taller banner = more rows = more detail (classic LED approach)
-const LED_DOT_PX = 6; // physical size of each dot cell in pixels
+// Fixed pixel mapping: CHAR_ROWS dot rows per character always.
+// cfg.dotSize controls physical dot size only — matrix density never changes.
+const CHAR_ROWS = 13; // fixed dot rows per character
 
 function textToDots(text, dotGrid, numRows, font) {
   // Render at 4× resolution for crisp sampling of thin strokes
@@ -553,8 +554,8 @@ function textToDots(text, dotGrid, numRows, font) {
 }
 
 function buildLEDItems(canvasH) {
-  const dotGrid = cfg.dotSize; // user-controlled via slider in LED mode
-  const numRows = Math.max(7, Math.floor(canvasH / dotGrid)); // fills full height
+  const dotGrid = cfg.dotSize;  // physical dot size — slider changes size, not density
+  const numRows = CHAR_ROWS;    // fixed pixel mapping — always 13 dot rows per character
   const GAP     = 8; // dot columns gap between tickers
   const font    = cfg.font;
 
@@ -738,7 +739,7 @@ function drawFrame(ts) {
 
       const r        = dotGrid * 0.38; // ~38% of cell — clear gap between dots
       const dimR     = dotGrid * 0.22; // smaller unlit dot
-      const charPx   = tickerData.numRows * dotGrid;
+      const charPx   = CHAR_ROWS * dotGrid;
       const yOff     = Math.floor(Math.max(0, (H - charPx) / 2) / dotGrid) * dotGrid;
       const gridCols = Math.ceil(W / dotGrid) + 2;
       const gridRows = Math.ceil(H / dotGrid) + 1;
