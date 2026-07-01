@@ -553,7 +553,7 @@ function textToDots(text, dotGrid, numRows, font) {
 }
 
 function buildLEDItems(canvasH) {
-  const dotGrid = LED_DOT_PX;
+  const dotGrid = cfg.dotSize; // user-controlled via slider in LED mode
   const numRows = Math.max(7, Math.floor(canvasH / dotGrid)); // fills full height
   const GAP     = 8; // dot columns gap between tickers
   const font    = cfg.font;
@@ -678,9 +678,27 @@ function toggleLED() {
   btn.textContent       = cfg.ledMode ? 'LED' : 'TEXT';
   btn.style.borderColor = cfg.ledMode ? 'var(--orange)' : '#fff';
   btn.style.color       = cfg.ledMode ? 'var(--orange)' : '#fff';
-  // Show/hide dot gap slider in settings
-  document.getElementById('sGap').closest('.sgroup').style.display = cfg.ledMode ? '' : 'none';
+  syncDotSlider();
   rebuildLED();
+}
+
+function syncDotSlider() {
+  const sl    = document.getElementById('sDot');
+  const label = document.getElementById('vDot');
+  const lbl   = sl.closest('.sgroup').querySelector('label');
+  if (cfg.ledMode) {
+    sl.min = 3; sl.max = 16; sl.step = 1;
+    if (cfg.dotSize > 16 || cfg.dotSize < 3) cfg.dotSize = 6;
+    sl.value = cfg.dotSize;
+    label.textContent = cfg.dotSize;
+    lbl.childNodes[0].nodeValue = 'Dot Size (px) ';
+  } else {
+    sl.min = 20; sl.max = 120; sl.step = 2;
+    if (cfg.dotSize < 20) cfg.dotSize = 80;
+    sl.value = cfg.dotSize;
+    label.textContent = cfg.dotSize;
+    lbl.childNodes[0].nodeValue = 'Font Size (px) ';
+  }
 }
 
 // ── RENDER LOOP ───────────────────────────────────────────────────────────────
