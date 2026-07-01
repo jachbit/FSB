@@ -329,6 +329,30 @@
 
   <div class="sgroup">
     <button class="sbtn sec" onclick="forceRefresh()">↻ REFRESH PRICES NOW</button>
+  </div>
+
+  <hr class="divider">
+
+  <div class="sgroup">
+    <label>Voice</label>
+    <select id="voice-select" onchange="voiceIdx=+this.value">
+      <option value="0">Loading voices...</option>
+    </select>
+  </div>
+
+  <div class="sgroup">
+    <label>Voice Volume <span class="val" id="vVol">100%</span></label>
+    <input type="range" id="sVol" min="0" max="1" step="0.05" value="1"
+      oninput="voiceVol=+this.value;document.getElementById('vVol').textContent=Math.round(this.value*100)+'%'">
+  </div>
+
+  <div class="sgroup">
+    <label>Voice Speed <span class="val" id="vRate">Normal</span></label>
+    <input type="range" id="sRate" min="0.5" max="2" step="0.1" value="1.1"
+      oninput="voiceRate=+this.value;document.getElementById('vRate').textContent=this.value+'x'">
+  </div>
+
+  <div class="sgroup">
     <button class="sbtn sec" onclick="resetDefaults()">RESET DEFAULTS</button>
   </div>
 
@@ -457,101 +481,107 @@ function textToDots(text, dotGrid, canvasH) {
   return { dots, gridW: Math.ceil(oc.width / dotGrid) };
 }
 
-// Build the complete ticker scroll sequence as a dot-map list
-function buildTickerDotMap(canvasH) {
-  const dotGrid = cfg.dotSize + cfg.dotGap;
-  const segments = [];
-  const segmentCounts = []; // actual segment count per ticker
+// Build dot array for one ticker item, returns {dots, gridW}
+function buildTickerItem(sym, dotGrid, canvasH) {
+  const d    = quoteData[sym];
+  const disp = sym.replace('^','').replace('-USD',' USD');
+  const dir  = d ? (d.chg > 0 ? 'up' : d.chg < 0 ? 'down' : 'flat') : 'na';
+  const parts = [];
 
-  const gapDots = Math.max(3, Math.floor(40 / dotGrid));
+  parts.push({ m: textToDots(disp, dotGrid, canvasH), c: cfg.symColor });
+  parts.push({ m: { dots:[], gridW: 2 }, c: '#000' });
 
-  tickers.forEach((sym, i) => {
-    const before = segments.length;
-    const d      = quoteData[sym];
-    const disp   = sym.replace('^','').replace('-USD',' USD');
-    const dir    = d ? (d.chg > 0 ? 'up' : d.chg < 0 ? 'down' : 'flat') : 'na';
+  if (d) {
+    const pStr = d.price >= 1000
+      ? d.price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})
+      : d.price.toFixed(2);
+    parts.push({ m: textToDots(pStr, dotGrid, canvasH), c: cfg.priceColor });
+    parts.push({ m: { dots:[], gridW: 1 }, c: '#000' });
+    const sign  = d.chg >= 0 ? '+' : '';
+    const arrow = d.chg > 0 ? '▲' : d.chg < 0 ? '▼' : '■';
+    const cStr  = `${arrow}${sign}${d.chg.toFixed(2)} (${sign}${d.pct.toFixed(2)}%)`;
+    parts.push({ m: textToDots(cStr, dotGrid, canvasH), c: dir==='up'?cfg.upColor:dir==='down'?cfg.downColor:'#888' });
+  } else {
+    parts.push({ m: textToDots('---', dotGrid, canvasH), c: '#444' });
+  }
 
-    // Symbol
-    segments.push({ ...textToDots(disp, dotGrid, canvasH), color: cfg.symColor });
-    // Space
-    segments.push({ dots:[], gridW: 2, color: '#000' });
+  parts.push({ m: textToDots(' | ', dotGrid, canvasH), c: cfg.divColor });
 
-    if (d) {
-      const pStr = d.price >= 1000
-        ? d.price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})
-        : d.price.toFixed(2);
-      segments.push({ ...textToDots(pStr, dotGrid, canvasH), color: cfg.priceColor });
-      segments.push({ dots:[], gridW: 1, color: '#000' });
-      const sign  = d.chg >= 0 ? '+' : '';
-      const arrow = d.chg > 0 ? '▲' : d.chg < 0 ? '▼' : '■';
-      const cStr  = `${arrow}${sign}${d.chg.toFixed(2)} (${sign}${d.pct.toFixed(2)}%)`;
-      const col   = dir === 'up' ? cfg.upColor : dir === 'down' ? cfg.downColor : '#888';
-      segments.push({ ...textToDots(cStr, dotGrid, canvasH), color: col });
-    } else {
-      segments.push({ ...textToDots('---', dotGrid, canvasH), color: '#333' });
-    }
-
-    // Divider
-    segments.push({ ...textToDots(' | ', dotGrid, canvasH), color: cfg.divColor });
-
-    segmentCounts.push(segments.length - before); // actual count for this ticker
+  const dots = [];
+  let x = 0;
+  parts.forEach(({ m, c }) => {
+    m.dots.forEach(([gx, gy]) => dots.push({ gx: gx + x, gy, color: c }));
+    x += m.gridW + 1;
   });
+  return { dots, gridW: x };
+}
 
-  // Layout — use actual per-ticker segment counts
-
-  const allDots = [];
+function buildTickerDotMap(canvasH) {
+  const dotGrid  = cfg.dotSize + cfg.dotGap;
+  const gapGrid  = Math.max(4, Math.floor(50 / dotGrid));
+  const allDots  = [];
   const tickerCenters = [];
   let curX = 0;
-  let segIdx = 0;
-  tickers.forEach((sym, ti) => {
-    const tickerStart = curX;
-    const count = segmentCounts[ti];
-    for (let s = 0; s < count; s++) {
-      const seg = segments[segIdx + s];
-      if (!seg) break;
-      seg.dots.forEach(([gx, gy]) => {
-        allDots.push({ gx: gx + curX, gy, color: seg.color });
-      });
-      curX += seg.gridW + gapDots;
-    }
-    tickerCenters.push({ sym, gridX: Math.floor((tickerStart + curX) / 2) });
-    segIdx += count;
+
+  tickers.forEach(sym => {
+    const item = buildTickerItem(sym, dotGrid, canvasH);
+    const centerGridX = curX + Math.floor(item.gridW / 2);
+    item.dots.forEach(({ gx, gy, color }) => {
+      allDots.push({ gx: gx + curX, gy, color });
+    });
+    tickerCenters.push({ sym, gridX: centerGridX });
+    curX += item.gridW + gapGrid;
   });
 
   return { allDots, totalGridW: curX, tickerCenters };
 }
 
 // ── VOICE ENGINE ─────────────────────────────────────────────────────────────
-let voiceOn = false;
+let voiceOn   = false;
 let lastSpoken = '';
+let voices    = [];
+let voiceIdx  = 0;
+let voiceVol  = 1.0;
+let voiceRate = 1.1;
+
+const NAMES = {
+  'SPY':'S P Y','QQQ':'Q Q Q','AAPL':'Apple','NVDA':'Nvidia','TSLA':'Tesla',
+  'MSFT':'Microsoft','AMZN':'Amazon','META':'Meta','GOOGL':'Google','AMD':'A M D',
+  'PLTR':'Palantir','SMCI':'Super Micro','BTC-USD':'Bitcoin',
+  '^GSPC':'S and P 500','^DJI':'Dow Jones','^VIX':'Vix',
+  'GLD':'Gold','SLV':'Silver','USO':'Oil','TLT':'T L T',
+};
+
+function loadVoices() {
+  voices = window.speechSynthesis.getVoices().filter(v => v.lang.startsWith('en'));
+  const sel = document.getElementById('voice-select');
+  if (!sel || !voices.length) return;
+  sel.innerHTML = voices.map((v, i) =>
+    `<option value="${i}">${v.name} (${v.lang})</option>`
+  ).join('');
+}
+if (window.speechSynthesis) {
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+  setTimeout(loadVoices, 300);
+}
 
 function speakTicker(sym) {
   if (!voiceOn || !window.speechSynthesis) return;
   const d = quoteData[sym];
   if (!d) return;
-
-  // Build natural speech text
-  const names = {
-    'SPY':'S P Y','QQQ':'Q Q Q','AAPL':'Apple','NVDA':'Nvidia','TSLA':'Tesla',
-    'MSFT':'Microsoft','AMZN':'Amazon','META':'Meta','GOOGL':'Google','AMD':'A M D',
-    'PLTR':'Palantir','SMCI':'Super Micro','BTC-USD':'Bitcoin',
-    '^GSPC':'S&P 500','^DJI':'Dow Jones','^VIX':'VIX','GLD':'Gold',
-    'SLV':'Silver','USO':'Oil','TLT':'T L T',
-  };
-  const name   = names[sym] || sym.replace('^','').replace('-USD','');
+  const name   = NAMES[sym] || sym.replace('^','').replace('-USD','');
   const dir    = d.chg > 0 ? 'up' : d.chg < 0 ? 'down' : 'unchanged';
   const pStr   = d.price.toFixed(2);
   const pctStr = Math.abs(d.pct).toFixed(1);
-  const text   = `${name} — ${pStr} — ${dir} ${pctStr} percent`;
-
+  const text   = `${name}. ${pStr}. ${dir} ${pctStr} percent`;
   if (text === lastSpoken) return;
   lastSpoken = text;
-
   window.speechSynthesis.cancel();
   const utt  = new SpeechSynthesisUtterance(text);
-  utt.rate   = 1.1;
+  if (voices[voiceIdx]) utt.voice = voices[voiceIdx];
+  utt.rate   = voiceRate;
   utt.pitch  = 1.0;
-  utt.volume = 1.0;
+  utt.volume = voiceVol;
   window.speechSynthesis.speak(utt);
 }
 
@@ -565,7 +595,7 @@ function toggleRainbow() {
 function toggleVoice() {
   voiceOn = !voiceOn;
   const btn = document.getElementById('voice-btn');
-  btn.textContent  = voiceOn ? '🔊' : '🔇';
+  btn.textContent       = voiceOn ? '🔊' : '🔇';
   btn.style.borderColor = voiceOn ? 'var(--orange)' : '#fff';
   btn.style.color       = voiceOn ? 'var(--orange)' : '#fff';
   if (!voiceOn) window.speechSynthesis.cancel();
@@ -604,15 +634,15 @@ function drawFrame() {
     const prevOffset = row.offset;
     row.offset = (row.offset + cfg.speed * (ri === 1 ? 0.85 : ri === 2 ? 1.15 : 1)) % (dotMap.totalGridW * dotGrid);
 
-    // Voice: detect which ticker just crossed screen center (row 0 only)
+    // Voice sync: speak when ticker center crosses screen center (row 0 only)
     if (ri === 0 && dotMap.tickerCenters) {
-      const centerPx = W / 2;
+      const centerPx  = W / 2;
+      const totalPx   = dotMap.totalGridW * dotGrid;
       dotMap.tickerCenters.forEach(({ sym, gridX }) => {
-        const x = gridX * dotGrid - row.offset;
-        const xPrev = gridX * dotGrid - prevOffset;
-        if ((xPrev > centerPx && x <= centerPx) || (xPrev - dotMap.totalGridW * dotGrid > centerPx && x - dotMap.totalGridW * dotGrid <= centerPx)) {
-          speakTicker(sym);
-        }
+        const xNow  = (gridX * dotGrid - row.offset + totalPx) % totalPx;
+        const xPrev = (gridX * dotGrid - prevOffset  + totalPx) % totalPx;
+        // Trigger when crossing center from right to left
+        if (xPrev > centerPx && xNow <= centerPx) speakTicker(sym);
       });
     }
 
