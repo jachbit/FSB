@@ -633,10 +633,11 @@ function rebuildLED() {
     // Insert before bottom strip
     wrap.insertBefore(div, strips[strips.length - 1]);
 
-    // Size canvas to actual pixel dimensions
+    // Size canvas — fall back to window size if layout not ready yet
     const resizeCanvas = () => {
-      canvas.width  = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
+      const rect = div.getBoundingClientRect();
+      canvas.width  = rect.width  || window.innerWidth;
+      canvas.height = rect.height || Math.floor((window.innerHeight - 50) / numRows);
     };
     resizeCanvas();
 
