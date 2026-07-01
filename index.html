@@ -512,7 +512,7 @@ function buildTickerItems(ctx) {
 }
 
 // ── LED DOT-MATRIX ENGINE ─────────────────────────────────────────────────────
-const CHAR_ROWS = 9; // dot rows per character
+const CHAR_ROWS = 11; // dot rows per character — more rows = finer resolution
 
 function textToDots(text, dotGrid, font) {
   const cellH    = CHAR_ROWS * dotGrid;
@@ -706,8 +706,8 @@ function drawFrame(ts) {
       ctx.fillStyle = cfg.bgColor;
       ctx.fillRect(0, 0, W, H);
 
-      const r        = dotGrid / 2 - 0.5;
-      const dimR     = r * 0.7;
+      const r        = dotGrid * 0.38; // ~38% of cell — clear gap between dots
+      const dimR     = dotGrid * 0.22; // smaller unlit dot
       const charPx   = CHAR_ROWS * dotGrid;
       const yOff     = Math.floor(Math.max(0, (H - charPx) / 2) / dotGrid) * dotGrid;
       const gridCols = Math.ceil(W / dotGrid) + 2;
@@ -751,7 +751,7 @@ function drawFrame(ts) {
 
       Object.entries(groups).forEach(([color, pts]) => {
         ctx.shadowColor = color;
-        ctx.shadowBlur  = cfg.glow;
+        ctx.shadowBlur  = Math.min(cfg.glow, dotGrid * 0.8);
         ctx.fillStyle   = color;
         ctx.beginPath();
         for (let i = 0; i < pts.length; i += 2) {
