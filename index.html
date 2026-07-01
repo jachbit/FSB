@@ -263,8 +263,8 @@
   </div>
 
   <div class="sgroup">
-    <label>Font Size <span class="val" id="vDot">12</span></label>
-    <input type="range" id="sDot" min="2" max="30" value="16" oninput="cfg.dotSize=+this.value;document.getElementById('vDot').textContent=this.value;rebuildLED()">
+    <label>Font Size (px) <span class="val" id="vDot">80</span></label>
+    <input type="range" id="sDot" min="20" max="120" step="2" value="80" oninput="cfg.dotSize=+this.value;document.getElementById('vDot').textContent=this.value;rebuildLED()">
   </div>
 
   <div class="sgroup" style="display:none">
@@ -359,7 +359,7 @@
 // ── CONFIG ───────────────────────────────────────────────────────────────────
 const cfg = {
   ledMode:    false,
-  dotSize:    16,
+  dotSize:    80,
   dotGap:     2,
   glow:       18,
   speed:      1.5,
@@ -455,7 +455,7 @@ async function fetchAll() {
 // ── TICKER TEXT SEGMENTS ──────────────────────────────────────────────────────
 // Simple fillText rendering — no dot matrix, no canvas size limits.
 function buildTickerItems(ctx) {
-  const fs   = cfg.dotSize * 4 + 8;   // dotSize slider drives font size
+  const fs   = cfg.dotSize;            // slider value IS the font size in px
   const font = `bold ${fs}px ${cfg.font}`;
   ctx.font   = font;
   const GAP  = fs * 0.9;              // space between tickers
@@ -918,12 +918,12 @@ function importCSV(input) {
 }
 
 function resetDefaults() {
-  cfg.dotSize=16; cfg.dotGap=2; cfg.glow=18; cfg.speed=1.5;
+  cfg.dotSize=80; cfg.dotGap=2; cfg.glow=18; cfg.speed=1.5;
   cfg.font="'Share Tech Mono', monospace";
   cfg.bgColor='#000000'; cfg.symColor='#ffffff'; cfg.priceColor='#00e5ff';
   cfg.upColor='#00ff88'; cfg.downColor='#ff3b3b'; cfg.dimColor='#1a1a1a'; cfg.divColor='#e65c00';
   document.getElementById('sFont').value="'Share Tech Mono', monospace";
-  document.getElementById('sDot').value=12;  document.getElementById('vDot').textContent='12';
+  document.getElementById('sDot').value=80;  document.getElementById('vDot').textContent='80';
   document.getElementById('sGap').value=2;   document.getElementById('vGap').textContent='2';
   document.getElementById('sGlow').value=18; document.getElementById('vGlow').textContent='18';
   document.getElementById('sSpeed').value=1.5; document.getElementById('vSpeed').textContent='Normal';
