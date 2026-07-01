@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>F.O.C.U.S.© STOCKS BANNER — LITE</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy:   #002b5c;
+    --orange: #e65c00;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: #000;
+    overflow: hidden;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  /* ── HEADER ── */
+  #header {
+    height: 40px;
+    background: var(--navy);
+    border-bottom: 3px solid var(--orange);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 14px;
+    z-index: 10;
+    white-space: nowrap;
+  }
+  .brand {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 13px;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: 2px;
+    flex-shrink: 0;
+  }
+  .brand span { color: var(--orange); }
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 11px;
+    color: #aac4e8;
+  }
+  #clock { color: #fff; font-size: 15px; font-family: 'Share Tech Mono', monospace; font-weight: 700; letter-spacing: 1px; }
+  .badge {
+    background: var(--orange); color: #fff;
+    padding: 4px 11px; border-radius: 3px;
+    font-size: 14px; font-weight: 900; letter-spacing: 2px;
+    font-family: 'Orbitron', sans-serif;
+  }
+  #last-update { font-size: 13px; color: #ffffff; font-family: 'Share Tech Mono', monospace; font-weight: 700; }
+  #gear-btn {
+    background: none; border: 2px solid #ffffff;
+    color: #ffffff; cursor: pointer;
+    border-radius: 4px; padding: 3px 10px;
+    font-size: 18px; font-weight: 700;
+    transition: border-color .2s, color .2s;
+  }
+  #gear-btn:hover { border-color: var(--orange); color: var(--orange); }
+
+  /* ── CANVAS AREA ── */
+  #banner-wrap {
+    width: 100%;
+    height: calc(100vh - 40px);
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  .led-row {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+  .led-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Rainbow LED strip */
+  .rainbow-strip {
+    height: 5px;
+    width: 100%;
+    background: linear-gradient(90deg,
+      #ff0000,#ff6600,#ffff00,#00ff00,#00ffff,#0066ff,#aa00ff,#ff0000);
+    background-size: 400% 100%;
+    animation: rainbow 3s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes rainbow {
+    from { background-position: 0% 50%; }
+    to   { background-position: 400% 50%; }
+  }
+
+  /* ── SETTINGS PANEL ── */
+  #overlay {
+    display: none; position: fixed; inset: 0;
+    z-index: 99; background: rgba(0,0,0,.5);
+  }
+  #overlay.show { display: block; }
+
+  #settings-panel {
+    position: fixed; top: 40px; right: 0;
+    width: 340px; height: calc(100vh - 40px);
+    background: #080d17;
+    border-left: 2px solid #1a2a4a;
+    padding: 18px 16px;
+    overflow-y: auto; z-index: 100;
+    transform: translateX(100%);
+    transition: transform .3s ease;
+    font-family: 'Share Tech Mono', monospace;
+  }
+  #settings-panel.open { transform: translateX(0); }
+
+  #settings-panel h2 {
+    color: var(--orange);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 13px; letter-spacing: 2px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid #1a2a4a;
+    padding-bottom: 8px;
+  }
+  .sgroup { margin-bottom: 18px; }
+  .sgroup > label {
+    display: block; color: #ffffff;
+    font-size: 12px; letter-spacing: 1px;
+    text-transform: uppercase; margin-bottom: 6px;
+    font-weight: 700;
+  }
+  .val { float: right; color: #ffcc00; font-size: 12px; font-weight: 700; }
+  input[type=range] { width: 100%; accent-color: var(--orange); cursor: pointer; margin-top: 4px; }
+  select, textarea, input[type=text] {
+    width: 100%; background: #0c1420; color: #ffffff;
+    border: 1px solid #334; border-radius: 4px;
+    padding: 7px 10px; font-size: 13px;
+    font-family: 'Share Tech Mono', monospace;
+    cursor: pointer;
+  }
+  textarea { resize: vertical; min-height: 80px; }
+  .color-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 10px; margin-top: 6px;
+  }
+  .ci { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .ci span { font-size: 10px; color: #ffffff; text-transform: uppercase; font-weight: 700; }
+  input[type=color] {
+    width: 38px; height: 26px; padding: 2px;
+    border: 1px solid #1a2a4a; border-radius: 3px;
+    background: none; cursor: pointer;
+  }
+  .rows-btns { display: flex; gap: 6px; }
+  .rows-btns button {
+    flex: 1; padding: 8px;
+    background: #0c1420; color: #ffffff;
+    border: 1px solid #334; border-radius: 4px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px; font-weight: 700; cursor: pointer;
+    transition: background .2s, border-color .2s;
+  }
+  .rows-btns button.active {
+    background: var(--navy); border-color: var(--orange); color: #fff;
+  }
+  .sbtn {
+    width: 100%; padding: 10px; margin-top: 6px;
+    background: var(--orange); color: #fff;
+    border: none; border-radius: 4px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 12px; font-weight: 700; letter-spacing: 1px;
+    cursor: pointer; transition: opacity .2s;
+  }
+  .sbtn:hover { opacity: .85; }
+  .sbtn.sec {
+    background: #0c1420; border: 1px solid #334;
+    color: #ffffff; margin-top: 8px; font-size: 12px;
+  }
+  .csv-row { display: flex; gap: 6px; margin-top: 6px; }
+  .csv-row button {
+    flex: 1; padding: 8px;
+    background: #0c1420; color: #ffffff;
+    border: 1px solid #334; border-radius: 4px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px; font-weight: 700; cursor: pointer;
+    transition: border-color .2s, color .2s;
+  }
+  .csv-row button:hover { border-color: var(--orange); color: #fff; }
+  #csv-file { display: none; }
+
+  .divider { border: none; border-top: 1px solid #1a2a4a; margin: 14px 0; }
+  #status-line {
+    font-size: 12px; color: #ffffff; text-align: center; margin-top: 10px;
+    min-height: 16px; font-weight: 700;
+  }
+  #status-line.ok  { color: #00dd66; }
+  #status-line.err { color: #ff4444; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <div class="brand">F.O.C.U.S.<sup style="font-size:9px">©</sup> <span>STOCKS BANNER</span></div>
+  <div class="header-right">
+    <span id="clock">--:--:-- --</span>
+    <span class="badge">LITE</span>
+    <span id="last-update">NOT LOADED</span>
+    <button id="gear-btn" onclick="togglePanel()">⚙</button>
+  </div>
+</div>
+
+<!-- BANNER -->
+<div id="banner-wrap">
+  <div class="rainbow-strip"></div>
+  <!-- canvas rows injected by JS -->
+  <div class="rainbow-strip"></div>
+</div>
+
+<!-- OVERLAY + PANEL -->
+<div id="overlay" onclick="togglePanel()"></div>
+<div id="settings-panel">
+  <h2>⚙ BANNER SETTINGS</h2>
+
+  <div class="sgroup">
+    <label>Text Font</label>
+    <select id="sFont" onchange="cfg.font=this.value;rebuildLED()">
+      <option value="'Share Tech Mono', monospace" selected>Share Tech Mono (Dotted)</option>
+      <option value="'Courier New', monospace">Courier New (Classic)</option>
+      <option value="'Orbitron', sans-serif">Orbitron (Futuristic)</option>
+      <option value="'Rajdhani', sans-serif">Rajdhani (Modern)</option>
+      <option value="Arial Black, sans-serif">Arial Black (Bold)</option>
+      <option value="Impact, sans-serif">Impact (Heavy)</option>
+    </select>
+  </div>
+
+  <div class="sgroup">
+    <label>Dot Size <span class="val" id="vDot">5</span></label>
+    <input type="range" id="sDot" min="2" max="12" value="5" oninput="cfg.dotSize=+this.value;document.getElementById('vDot').textContent=this.value;rebuildLED()">
+  </div>
+
+  <div class="sgroup">
+    <label>Dot Gap <span class="val" id="vGap">2</span></label>
+    <input type="range" id="sGap" min="1" max="6" value="2" oninput="cfg.dotGap=+this.value;document.getElementById('vGap').textContent=this.value;rebuildLED()">
+  </div>
+
+  <div class="sgroup">
+    <label>Glow Intensity <span class="val" id="vGlow">18</span></label>
+    <input type="range" id="sGlow" min="0" max="40" value="18" oninput="cfg.glow=+this.value;document.getElementById('vGlow').textContent=this.value">
+  </div>
+
+  <div class="sgroup">
+    <label>Scroll Speed <span class="val" id="vSpeed">Normal</span></label>
+    <input type="range" id="sSpeed" min="0.3" max="5" step="0.1" value="1.5"
+      oninput="cfg.speed=+this.value;document.getElementById('vSpeed').textContent=speedLabel(+this.value)">
+  </div>
+
+  <div class="sgroup">
+    <label>Scroll Rows</label>
+    <div class="rows-btns">
+      <button id="rb1" class="active" onclick="setRows(1)">1 ROW</button>
+      <button id="rb2" onclick="setRows(2)">2 ROWS</button>
+      <button id="rb3" onclick="setRows(3)">3 ROWS</button>
+    </div>
+  </div>
+
+  <div class="sgroup">
+    <label>Colors</label>
+    <div class="color-grid">
+      <div class="ci"><input type="color" id="cBg"    value="#000000" oninput="cfg.bgColor=this.value"><span>BG</span></div>
+      <div class="ci"><input type="color" id="cSym"   value="#ffffff" oninput="cfg.symColor=this.value;rebuildLED()"><span>SYMBOL</span></div>
+      <div class="ci"><input type="color" id="cPrice" value="#00e5ff" oninput="cfg.priceColor=this.value;rebuildLED()"><span>PRICE</span></div>
+      <div class="ci"><input type="color" id="cUp"    value="#00ff88" oninput="cfg.upColor=this.value;rebuildLED()"><span>UP ▲</span></div>
+      <div class="ci"><input type="color" id="cDown"  value="#ff3b3b" oninput="cfg.downColor=this.value;rebuildLED()"><span>DOWN ▼</span></div>
+      <div class="ci"><input type="color" id="cDim"   value="#1a1a1a" oninput="cfg.dimColor=this.value"><span>UNLIT</span></div>
+      <div class="ci"><input type="color" id="cDiv"   value="#e65c00" oninput="cfg.divColor=this.value;rebuildLED()"><span>DIVIDER</span></div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <div class="sgroup">
+    <label>Ticker List</label>
+    <textarea id="sTickers">SPY, QQQ, AAPL, NVDA, TSLA, MSFT, AMZN, META, GOOGL, AMD, PLTR, SMCI, ^GSPC, ^DJI, ^VIX, BTC-USD, GLD, SLV, USO, TLT</textarea>
+    <button class="sbtn" style="margin-top:6px" onclick="applyTickers()">APPLY TICKERS</button>
+  </div>
+
+  <div class="sgroup">
+    <label>CSV Import / Export</label>
+    <div class="csv-row">
+      <button onclick="exportCSV()">⬇ EXPORT CSV</button>
+      <button onclick="document.getElementById('csv-file').click()">⬆ IMPORT CSV</button>
+    </div>
+    <input type="file" id="csv-file" accept=".csv,.txt" onchange="importCSV(this)">
+    <div style="font-size:12px;color:#ffffff;margin-top:6px;line-height:1.6">
+      CSV format: one ticker per line, or comma-separated.<br>
+      First line can be a list name (e.g. "Positions").
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <div class="sgroup">
+    <button class="sbtn sec" onclick="forceRefresh()">↻ REFRESH PRICES NOW</button>
+    <button class="sbtn sec" onclick="resetDefaults()">RESET DEFAULTS</button>
+  </div>
+
+  <div id="status-line">—</div>
+</div>
+
+<script>
+// ── CONFIG ───────────────────────────────────────────────────────────────────
+const cfg = {
+  dotSize:    5,
+  dotGap:     2,
+  glow:       18,
+  speed:      1.5,
+  font:       "'Share Tech Mono', monospace",
+  bgColor:    '#000000',
+  symColor:   '#ffffff',
+  priceColor: '#00e5ff',
+  upColor:    '#00ff88',
+  downColor:  '#ff3b3b',
+  dimColor:   '#1a1a1a',
+  divColor:   '#e65c00',
+};
+
+let tickers = [
+  'SPY','QQQ','AAPL','NVDA','TSLA','MSFT','AMZN','META','GOOGL',
+  'AMD','PLTR','SMCI','^GSPC','^DJI','^VIX','BTC-USD','GLD','SLV','USO','TLT'
+];
+let quoteData = {};
+let rows = [];      // [{canvas, ctx, offset, dotMap, totalW}]
+let numRows = 1;
+let animId = null;
+let refreshTimer = null;
+const REFRESH_MS = 60000;
+
+// ── CLOCK ────────────────────────────────────────────────────────────────────
+function updateClock() {
+  const t = new Date().toLocaleTimeString('en-US',
+    {hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true,timeZone:'America/New_York'});
+  document.getElementById('clock').textContent = t + ' ET';
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── FETCH PRICES ─────────────────────────────────────────────────────────────
+function setStatus(msg, type='') {
+  const el = document.getElementById('status-line');
+  el.textContent = msg; el.className = type;
+}
+
+async function fetchOneTicker(sym) {
+  const enc   = encodeURIComponent(sym);
+  const yfUrl = `https://query2.finance.yahoo.com/v8/finance/chart/${enc}?interval=1d&range=2d`;
+  const urls  = [
+    `https://corsproxy.io/?url=${encodeURIComponent(yfUrl)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(yfUrl)}`,
+    yfUrl,
+  ];
+  for (const url of urls) {
+    try {
+      const r = await fetch(url, { cache: 'no-store' });
+      if (!r.ok) continue;
+      const j    = await r.json();
+      const meta = j?.chart?.result?.[0]?.meta;
+      if (!meta) continue;
+      const price = meta.regularMarketPrice ?? meta.previousClose;
+      if (!price) continue;
+      const prev  = meta.chartPreviousClose ?? meta.previousClose ?? price;
+      const chg   = price - prev;
+      const pct   = prev ? (chg / prev) * 100 : 0;
+      return { price, chg, pct };
+    } catch { /* try next url */ }
+  }
+  return null;
+}
+
+async function fetchAll() {
+  setStatus('Fetching prices…');
+  const results = await Promise.all(tickers.map(sym =>
+    fetchOneTicker(sym).then(d => ({ sym, d }))
+  ));
+  let loaded = 0;
+  results.forEach(({ sym, d }) => {
+    if (d) { quoteData[sym] = d; loaded++; }
+  });
+  if (!loaded) {
+    setStatus('⚠ No prices loaded — check connection', 'err');
+  } else {
+    const now = new Date().toLocaleTimeString('en-US',
+      { hour:'2-digit', minute:'2-digit', hour12:true, timeZone:'America/New_York' });
+    document.getElementById('last-update').textContent = 'Updated ' + now + ' ET';
+    setStatus(`✓ ${loaded} / ${tickers.length} tickers loaded`, 'ok');
+  }
+  rebuildLED();
+}
+
+// ── LED DOT MATRIX ───────────────────────────────────────────────────────────
+// Build a dot-map for a given text string at a given LED grid size
+function textToDots(text, dotGrid, canvasH) {
+  const rows   = Math.floor(canvasH / dotGrid);
+  const cellH  = rows * dotGrid;
+  const oc     = document.createElement('canvas');
+  oc.height    = cellH;
+  const octx   = oc.getContext('2d');
+  const fontSize = Math.round(cellH * 0.78);
+  octx.font    = `900 ${fontSize}px ${cfg.font}`;
+  const tw     = octx.measureText(text).width;
+  oc.width     = Math.ceil(tw) + dotGrid * 2;
+  // Re-apply font after resize
+  octx.font    = `900 ${fontSize}px ${cfg.font}`;
+  octx.fillStyle = '#fff';
+  octx.fillText(text, dotGrid, fontSize * 0.92);
+
+  const imgData = octx.getImageData(0, 0, oc.width, oc.height);
+  const dots = [];
+  for (let gy = 0; gy < rows; gy++) {
+    for (let gx = 0; gx < Math.ceil(oc.width / dotGrid); gx++) {
+      const px = gx * dotGrid + Math.floor(dotGrid / 2);
+      const py = gy * dotGrid + Math.floor(dotGrid / 2);
+      if (px >= oc.width || py >= oc.height) continue;
+      const i  = (py * oc.width + px) * 4;
+      if (imgData.data[i + 3] > 80) {
+        dots.push([gx, gy]);
+      }
+    }
+  }
+  return { dots, gridW: Math.ceil(oc.width / dotGrid) };
+}
+
+// Build the complete ticker scroll sequence as a dot-map list
+function buildTickerDotMap(canvasH) {
+  const dotGrid = cfg.dotSize + cfg.dotGap;
+  const segments = []; // [{dots, gridW, color}]
+
+  // Spacer between items
+  const gapDots = Math.max(3, Math.floor(40 / dotGrid));
+
+  tickers.forEach((sym, i) => {
+    const d     = quoteData[sym];
+    const disp  = sym.replace('^','').replace('-USD',' USD');
+    const dir   = d ? (d.chg > 0 ? 'up' : d.chg < 0 ? 'down' : 'flat') : 'na';
+
+    // Symbol
+    const symMap = textToDots(disp, dotGrid, canvasH);
+    segments.push({ ...symMap, color: cfg.symColor });
+
+    // Space
+    segments.push({ dots:[], gridW: 2, color: '#000' });
+
+    if (d) {
+      // Price
+      const pStr = d.price >= 1000
+        ? d.price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})
+        : d.price.toFixed(2);
+      const pMap = textToDots(pStr, dotGrid, canvasH);
+      segments.push({ ...pMap, color: cfg.priceColor });
+
+      // Space
+      segments.push({ dots:[], gridW: 1, color: '#000' });
+
+      // Change
+      const sign  = d.chg >= 0 ? '+' : '';
+      const arrow = d.chg > 0 ? '▲' : d.chg < 0 ? '▼' : '■';
+      const cStr  = `${arrow}${sign}${d.chg.toFixed(2)} (${sign}${d.pct.toFixed(2)}%)`;
+      const cMap  = textToDots(cStr, dotGrid, canvasH);
+      const col   = dir === 'up' ? cfg.upColor : dir === 'down' ? cfg.downColor : '#888';
+      segments.push({ ...cMap, color: col });
+    } else {
+      const naMap = textToDots('---', dotGrid, canvasH);
+      segments.push({ ...naMap, color: '#333' });
+    }
+
+    // Divider
+    const divMap = textToDots(' | ', dotGrid, canvasH);
+    segments.push({ ...divMap, color: cfg.divColor });
+  });
+
+  // Layout segments left-to-right, collecting flat dot list with absolute x
+  const allDots = [];
+  let curX = 0;
+  segments.forEach(seg => {
+    seg.dots.forEach(([gx, gy]) => {
+      allDots.push({ gx: gx + curX, gy, color: seg.color });
+    });
+    curX += seg.gridW + gapDots;
+  });
+
+  return { allDots, totalGridW: curX };
+}
+
+// ── RENDER LOOP ───────────────────────────────────────────────────────────────
+function drawFrame() {
+  const dotGrid = cfg.dotSize + cfg.dotGap;
+  const r       = cfg.dotSize / 2;
+
+  rows.forEach((row, ri) => {
+    const { canvas, ctx, dotMap } = row;
+    const W = canvas.width, H = canvas.height;
+
+    // Background
+    ctx.fillStyle = cfg.bgColor;
+    ctx.fillRect(0, 0, W, H);
+
+    // Draw unlit background dots (LED panel texture)
+    ctx.fillStyle = cfg.dimColor;
+    const gridCols = Math.ceil(W / dotGrid) + 2;
+    const gridRows = Math.ceil(H / dotGrid);
+    for (let gy = 0; gy < gridRows; gy++) {
+      for (let gx = 0; gx < gridCols; gx++) {
+        const cx = gx * dotGrid + r;
+        const cy = gy * dotGrid + r;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r * 0.75, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    if (!dotMap) return;
+
+    // Advance offset
+    row.offset = (row.offset + cfg.speed * (ri === 1 ? 0.85 : ri === 2 ? 1.15 : 1)) % (dotMap.totalGridW * dotGrid);
+
+    // Draw lit dots
+    dotMap.allDots.forEach(({ gx, gy, color }) => {
+      const rawX = gx * dotGrid - row.offset;
+      // Wrap — draw twice for seamless loop
+      for (let rep = 0; rep < 2; rep++) {
+        const cx = rawX + rep * dotMap.totalGridW * dotGrid + r;
+        if (cx < -dotGrid || cx > W + dotGrid) continue;
+        const cy = gy * dotGrid + r;
+        ctx.shadowColor  = color;
+        ctx.shadowBlur   = cfg.glow;
+        ctx.fillStyle    = color;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    });
+
+    ctx.shadowBlur = 0;
+  });
+
+  animId = requestAnimationFrame(drawFrame);
+}
+
+// ── BUILD / REBUILD ──────────────────────────────────────────────────────────
+function rebuildLED() {
+  if (animId) cancelAnimationFrame(animId);
+
+  const wrap    = document.getElementById('banner-wrap');
+  const strips  = wrap.querySelectorAll('.rainbow-strip');
+  // Remove old row divs but keep strips
+  wrap.querySelectorAll('.led-row').forEach(el => el.remove());
+
+  rows = [];
+
+  for (let ri = 0; ri < numRows; ri++) {
+    const div    = document.createElement('div');
+    div.className = 'led-row';
+
+    const canvas = document.createElement('canvas');
+    canvas.className = 'led-canvas';
+    div.appendChild(canvas);
+
+    // Insert before bottom strip
+    wrap.insertBefore(div, strips[strips.length - 1]);
+
+    // Size canvas to actual pixel dimensions
+    const resizeCanvas = () => {
+      canvas.width  = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+    };
+    resizeCanvas();
+
+    const ctx    = canvas.getContext('2d');
+    const dotMap = buildTickerDotMap(canvas.height);
+
+    rows.push({ canvas, ctx, offset: ri * 200, dotMap });
+  }
+
+  // Handle window resize
+  window.onresize = () => {
+    rows.forEach(row => {
+      row.canvas.width  = row.canvas.offsetWidth;
+      row.canvas.height = row.canvas.offsetHeight;
+      row.dotMap = buildTickerDotMap(row.canvas.height);
+    });
+  };
+
+  drawFrame();
+}
+
+// ── SETTINGS HELPERS ─────────────────────────────────────────────────────────
+function togglePanel() {
+  document.getElementById('settings-panel').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('show');
+}
+function setRows(n) {
+  numRows = n;
+  [1,2,3].forEach(i => document.getElementById('rb'+i).classList.toggle('active', i===n));
+  rebuildLED();
+}
+function applyTickers() {
+  tickers = document.getElementById('sTickers').value
+    .split(/[\n,]+/).map(s=>s.trim().toUpperCase()).filter(Boolean);
+  quoteData = {};
+  fetchAll();
+}
+function forceRefresh() {
+  clearInterval(refreshTimer);
+  fetchAll();
+  refreshTimer = setInterval(fetchAll, REFRESH_MS);
+}
+function speedLabel(v) {
+  if (v <= 0.5) return 'Slowest';
+  if (v <= 1.0) return 'Slow';
+  if (v <= 1.8) return 'Normal';
+  if (v <= 3.0) return 'Fast';
+  return 'Fastest';
+}
+
+// ── CSV IMPORT / EXPORT ──────────────────────────────────────────────────────
+function exportCSV() {
+  const name  = prompt('Name for this ticker list:', 'My Watchlist') || 'Watchlist';
+  const lines = [name, ...tickers].join('\n');
+  const blob  = new Blob([lines], { type: 'text/csv' });
+  const a     = document.createElement('a');
+  a.href      = URL.createObjectURL(blob);
+  a.download  = name.replace(/\s+/g, '_') + '.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function importCSV(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const lines = e.target.result.split(/[\r\n]+/).map(l => l.trim()).filter(Boolean);
+    // Skip first line if it looks like a name (no ^ and contains letters but not like a ticker)
+    let start = 0;
+    if (lines[0] && !/^[\^A-Z]{1,6}(-USD)?$/.test(lines[0].toUpperCase())) start = 1;
+    const newTickers = lines.slice(start)
+      .flatMap(l => l.split(','))
+      .map(s => s.trim().toUpperCase())
+      .filter(Boolean);
+    if (!newTickers.length) { setStatus('⚠ No valid tickers found in CSV', 'err'); return; }
+    tickers = newTickers;
+    document.getElementById('sTickers').value = tickers.join(', ');
+    quoteData = {};
+    setStatus('✓ Loaded ' + tickers.length + ' tickers from ' + file.name, 'ok');
+    fetchAll();
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+function resetDefaults() {
+  cfg.dotSize=5; cfg.dotGap=2; cfg.glow=18; cfg.speed=1.5;
+  cfg.font="'Share Tech Mono', monospace";
+  cfg.bgColor='#000000'; cfg.symColor='#ffffff'; cfg.priceColor='#00e5ff';
+  cfg.upColor='#00ff88'; cfg.downColor='#ff3b3b'; cfg.dimColor='#1a1a1a'; cfg.divColor='#e65c00';
+  document.getElementById('sFont').value="'Share Tech Mono', monospace";
+  document.getElementById('sDot').value=5;   document.getElementById('vDot').textContent='5';
+  document.getElementById('sGap').value=2;   document.getElementById('vGap').textContent='2';
+  document.getElementById('sGlow').value=18; document.getElementById('vGlow').textContent='18';
+  document.getElementById('sSpeed').value=1.5; document.getElementById('vSpeed').textContent='Normal';
+  document.getElementById('cBg').value='#000000';
+  document.getElementById('cSym').value='#ffffff';
+  document.getElementById('cPrice').value='#00e5ff';
+  document.getElementById('cUp').value='#00ff88';
+  document.getElementById('cDown').value='#ff3b3b';
+  document.getElementById('cDim').value='#1a1a1a';
+  document.getElementById('cDiv').value='#e65c00';
+  setRows(1);
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+// Give fonts time to load before first render
+document.fonts.ready.then(() => {
+  rebuildLED();           // show dot grid immediately (prices may be ---)
+  fetchAll();             // then fetch prices
+  refreshTimer = setInterval(fetchAll, REFRESH_MS);
+});
+</script>
+</body>
+</html>
