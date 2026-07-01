@@ -230,6 +230,7 @@
     <span class="badge">LITE</span>
     <span id="last-update">NOT LOADED</span>
     <button id="rainbow-btn" onclick="toggleRainbow()" title="Freeze/unfreeze border animation">🌈</button>
+    <button id="led-btn" onclick="toggleLED()" title="Toggle LED dot-matrix mode" style="background:none;border:2px solid #ffffff;color:#ffffff;cursor:pointer;border-radius:4px;padding:3px 10px;font-size:12px;font-weight:700;font-family:'Share Tech Mono',monospace;transition:border-color .2s,color .2s;">TEXT</button>
     <button id="voice-btn" onclick="toggleVoice()" title="Toggle voice announcements">🔇</button>
     <button id="gear-btn" onclick="togglePanel()">⚙</button>
   </div>
@@ -357,6 +358,7 @@
 <script>
 // ── CONFIG ───────────────────────────────────────────────────────────────────
 const cfg = {
+  ledMode:    false,
   dotSize:    12,
   dotGap:     2,
   glow:       18,
@@ -442,7 +444,9 @@ async function fetchAll() {
   }
   // Refresh ticker segment data in-place — do NOT reset offsets
   if (rows.length > 0) {
-    rows.forEach(row => { row.tickerData = buildTickerItems(row.ctx); });
+    rows.forEach(row => {
+      row.tickerData = cfg.ledMode ? buildLEDItems() : buildTickerItems(row.ctx);
+    });
   } else {
     rebuildLED();
   }
@@ -505,6 +509,89 @@ function buildTickerItems(ctx) {
   });
 
   return { segments, totalWidth: curX, markers, font };
+}
+
+// ── LED DOT-MATRIX ENGINE ─────────────────────────────────────────────────────
+const CHAR_ROWS = 9; // dot rows per character
+
+function textToDots(text, dotGrid, font) {
+  const cellH    = CHAR_ROWS * dotGrid;
+  const fontSize = Math.round(cellH * 0.85);
+  const oc       = document.createElement('canvas');
+  oc.height      = cellH;
+  const octx     = oc.getContext('2d');
+  octx.font      = `900 ${fontSize}px ${font}`;
+  const tw       = octx.measureText(text).width;
+  oc.width       = Math.max(1, Math.ceil(tw) + dotGrid * 2);
+  octx.font      = `900 ${fontSize}px ${font}`;
+  octx.fillStyle = '#fff';
+  octx.fillText(text, dotGrid, fontSize * 0.88);
+  const imgData  = octx.getImageData(0, 0, oc.width, oc.height);
+  const dots     = [];
+  const gridW    = Math.ceil(oc.width / dotGrid);
+  for (let gy = 0; gy < CHAR_ROWS; gy++) {
+    for (let gx = 0; gx < gridW; gx++) {
+      const px = gx * dotGrid + Math.floor(dotGrid / 2);
+      const py = gy * dotGrid + Math.floor(dotGrid / 2);
+      if (px < oc.width && py < oc.height &&
+          imgData.data[(py * oc.width + px) * 4 + 3] > 80)
+        dots.push([gx, gy]);
+    }
+  }
+  return { dots, gridW };
+}
+
+function buildLEDItems() {
+  const dotGrid = cfg.dotSize + cfg.dotGap;
+  const GAP     = Math.max(4, Math.round(50 / dotGrid)); // grid columns between tickers
+  const font    = cfg.font;
+
+  const DISP_NAMES = {
+    '^GSPC':'S&P 500','^DJI':'DOW','^VIX':'VIX','BTC-USD':'BTC','ETH-USD':'ETH',
+  };
+
+  const segments  = []; // {dots:[{gx,gy,color}], gridW, startGridX}
+  const markers   = []; // {sym, gridX}
+  let curGridX = 0;
+
+  tickers.forEach(sym => {
+    const d    = quoteData[sym];
+    const disp = DISP_NAMES[sym] || sym.replace('^','').replace('-USD',' USD');
+    const dir  = d ? (d.chg > 0 ? 'up' : d.chg < 0 ? 'down' : 'flat') : 'na';
+    markers.push({ sym, gridX: curGridX });
+
+    const parts = [];
+    parts.push({ m: textToDots(disp, dotGrid, font), c: cfg.symColor });
+    parts.push({ m: { dots:[], gridW: 2 }, c: '#000' });
+
+    if (d) {
+      const pStr = d.price >= 1000
+        ? d.price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})
+        : d.price.toFixed(2);
+      parts.push({ m: textToDots(pStr, dotGrid, font), c: cfg.priceColor });
+      parts.push({ m: { dots:[], gridW: 3 }, c: '#000' });
+      const sign  = d.chg >= 0 ? '+' : '';
+      const arrow = d.chg > 0 ? '▲' : d.chg < 0 ? '▼' : '■';
+      const cStr  = `${arrow}${sign}${d.chg.toFixed(2)} (${sign}${d.pct.toFixed(2)}%)`;
+      const chgColor = dir==='up' ? cfg.upColor : dir==='down' ? cfg.downColor : '#888';
+      parts.push({ m: textToDots(cStr, dotGrid, font), c: chgColor });
+    } else {
+      parts.push({ m: textToDots('---', dotGrid, font), c: '#555' });
+    }
+    parts.push({ m: { dots:[], gridW: 3 }, c: '#000' });
+    parts.push({ m: textToDots('|', dotGrid, font), c: cfg.divColor });
+
+    const itemDots = [];
+    let ix = 0;
+    parts.forEach(({ m, c }) => {
+      m.dots.forEach(([gx, gy]) => itemDots.push({ gx: gx + ix, gy, color: c }));
+      ix += m.gridW + 1;
+    });
+    segments.push({ dots: itemDots, gridW: ix, startGridX: curGridX });
+    curGridX += ix + GAP;
+  });
+
+  return { segments, totalGridW: curGridX, markers, dotGrid };
 }
 
 // ── VOICE ENGINE ─────────────────────────────────────────────────────────────
@@ -573,61 +660,141 @@ function toggleVoice() {
   if (!voiceOn) window.speechSynthesis.cancel();
 }
 
+function toggleLED() {
+  cfg.ledMode = !cfg.ledMode;
+  const btn = document.getElementById('led-btn');
+  btn.textContent       = cfg.ledMode ? 'LED' : 'TEXT';
+  btn.style.borderColor = cfg.ledMode ? 'var(--orange)' : '#fff';
+  btn.style.color       = cfg.ledMode ? 'var(--orange)' : '#fff';
+  // Show/hide dot gap slider in settings
+  document.getElementById('sGap').closest('.sgroup').style.display = cfg.ledMode ? '' : 'none';
+  rebuildLED();
+}
+
 // ── RENDER LOOP ───────────────────────────────────────────────────────────────
 let _lastTs = null;
 
 function drawFrame(ts) {
-  // Time-based delta: speed is in px/s, independent of frame rate
   const dt = _lastTs === null ? 0 : Math.min((ts - _lastTs) / 1000, 0.1);
   _lastTs = ts;
-  const pxPerSec = cfg.speed * 90; // speed=1 → 90px/s
+  const pxPerSec = cfg.speed * 90;
 
   rows.forEach((row, ri) => {
     const { canvas, ctx, tickerData } = row;
     if (!tickerData) return;
-    const { segments, totalWidth, markers, font } = tickerData;
-    if (totalWidth <= 0) return;
     const W = canvas.width, H = canvas.height;
 
-    const prevOffset = row.offset;
-    const rowMult = ri === 1 ? 0.85 : ri === 2 ? 1.15 : 1;
-    row.offset = (row.offset + pxPerSec * rowMult * dt) % totalWidth;
+    if (cfg.ledMode) {
+      // ── LED MODE ──────────────────────────────────────────────────────────
+      const { segments, totalGridW, markers, dotGrid } = tickerData;
+      const totalPx = totalGridW * dotGrid;
+      if (totalPx <= 0) return;
 
-    // Voice: fire when ticker left edge enters screen from right (row 0 only)
-    if (ri === 0) {
-      markers.forEach(({ sym, x }) => {
-        const xNow  = ((x - row.offset)  % totalWidth + totalWidth) % totalWidth;
-        const xPrev = ((x - prevOffset)   % totalWidth + totalWidth) % totalWidth;
-        if (xPrev > W && xNow <= W) speakTicker(sym);
-      });
-    }
+      const prevOffset = row.offset;
+      const rowMult = ri === 1 ? 0.85 : ri === 2 ? 1.15 : 1;
+      row.offset = (row.offset + pxPerSec * rowMult * dt) % totalPx;
 
-    // Clear
-    ctx.fillStyle = cfg.bgColor;
-    ctx.fillRect(0, 0, W, H);
+      if (ri === 0) {
+        markers.forEach(({ sym, gridX }) => {
+          const px    = gridX * dotGrid;
+          const xNow  = ((px - row.offset) % totalPx + totalPx) % totalPx;
+          const xPrev = ((px - prevOffset)  % totalPx + totalPx) % totalPx;
+          if (xPrev > W && xNow <= W) speakTicker(sym);
+        });
+      }
 
-    ctx.font         = font;
-    ctx.textBaseline = 'middle';
-    const yMid = H / 2;
+      ctx.fillStyle = cfg.bgColor;
+      ctx.fillRect(0, 0, W, H);
 
-    // Draw only visible segments (skip anything fully off-screen)
-    segments.forEach(({ text, color, x, w }) => {
-      const baseX = x - row.offset;
-      // How many full strips fit: check baseX and baseX+totalWidth
-      for (let rep = 0; rep <= 1; rep++) {
-        const dx = baseX + rep * totalWidth;
-        if (dx + w > 0 && dx < W) {
-          ctx.fillStyle = color;
-          ctx.fillText(text, dx, yMid);
+      const r        = dotGrid / 2 - 0.5;
+      const dimR     = r * 0.7;
+      const charPx   = CHAR_ROWS * dotGrid;
+      const yOff     = Math.floor(Math.max(0, (H - charPx) / 2) / dotGrid) * dotGrid;
+      const gridCols = Math.ceil(W / dotGrid) + 2;
+      const gridRows = Math.ceil(H / dotGrid) + 1;
+
+      // Unlit dots
+      ctx.fillStyle = cfg.dimColor;
+      for (let gy = 0; gy < gridRows; gy++) {
+        for (let gx = 0; gx < gridCols; gx++) {
+          ctx.beginPath();
+          ctx.arc(gx * dotGrid + r + 0.5, gy * dotGrid + r + 0.5, dimR, 0, Math.PI * 2);
+          ctx.fill();
         }
       }
-      // Also check negative rep for segments near the wrap point
-      const dxNeg = baseX - totalWidth;
-      if (dxNeg + w > 0 && dxNeg < W) {
-        ctx.fillStyle = color;
-        ctx.fillText(text, dxNeg, yMid);
+
+      // Lit dots grouped by color for performance
+      const groups = {};
+      segments.forEach(({ dots, gridW, startGridX }) => {
+        const baseX = startGridX * dotGrid - row.offset;
+        for (let rep = 0; rep <= 1; rep++) {
+          const ox = baseX + rep * totalPx;
+          if (ox + gridW * dotGrid < -dotGrid || ox > W + dotGrid) continue;
+          dots.forEach(({ gx, gy, color }) => {
+            const cx = ox + gx * dotGrid + r + 0.5;
+            if (cx < -dotGrid || cx > W + dotGrid) return;
+            if (!groups[color]) groups[color] = [];
+            groups[color].push(cx, yOff + gy * dotGrid + r + 0.5);
+          });
+        }
+        // wrap-around check
+        const oxNeg = baseX - totalPx;
+        if (oxNeg + gridW * dotGrid > -dotGrid && oxNeg < W + dotGrid) {
+          dots.forEach(({ gx, gy, color }) => {
+            const cx = oxNeg + gx * dotGrid + r + 0.5;
+            if (cx < -dotGrid || cx > W + dotGrid) return;
+            if (!groups[color]) groups[color] = [];
+            groups[color].push(cx, yOff + gy * dotGrid + r + 0.5);
+          });
+        }
+      });
+
+      Object.entries(groups).forEach(([color, pts]) => {
+        ctx.shadowColor = color;
+        ctx.shadowBlur  = cfg.glow;
+        ctx.fillStyle   = color;
+        ctx.beginPath();
+        for (let i = 0; i < pts.length; i += 2) {
+          ctx.moveTo(pts[i] + r, pts[i + 1]);
+          ctx.arc(pts[i], pts[i + 1], r, 0, Math.PI * 2);
+        }
+        ctx.fill();
+      });
+      ctx.shadowBlur = 0;
+
+    } else {
+      // ── TEXT MODE ─────────────────────────────────────────────────────────
+      const { segments, totalWidth, markers, font } = tickerData;
+      if (totalWidth <= 0) return;
+
+      const prevOffset = row.offset;
+      const rowMult = ri === 1 ? 0.85 : ri === 2 ? 1.15 : 1;
+      row.offset = (row.offset + pxPerSec * rowMult * dt) % totalWidth;
+
+      if (ri === 0) {
+        markers.forEach(({ sym, x }) => {
+          const xNow  = ((x - row.offset) % totalWidth + totalWidth) % totalWidth;
+          const xPrev = ((x - prevOffset)  % totalWidth + totalWidth) % totalWidth;
+          if (xPrev > W && xNow <= W) speakTicker(sym);
+        });
       }
-    });
+
+      ctx.fillStyle    = cfg.bgColor;
+      ctx.fillRect(0, 0, W, H);
+      ctx.font         = font;
+      ctx.textBaseline = 'middle';
+      const yMid = H / 2;
+
+      segments.forEach(({ text, color, x, w }) => {
+        const baseX = x - row.offset;
+        for (let rep = 0; rep <= 1; rep++) {
+          const dx = baseX + rep * totalWidth;
+          if (dx + w > 0 && dx < W) { ctx.fillStyle = color; ctx.fillText(text, dx, yMid); }
+        }
+        const dxNeg = baseX - totalWidth;
+        if (dxNeg + w > 0 && dxNeg < W) { ctx.fillStyle = color; ctx.fillText(text, dxNeg, yMid); }
+      });
+    }
   });
   animId = requestAnimationFrame(drawFrame);
 }
@@ -654,7 +821,7 @@ function rebuildLED() {
     canvas.height = rect.height || Math.floor((window.innerHeight - 50) / numRows);
 
     const ctx        = canvas.getContext('2d');
-    const tickerData = buildTickerItems(ctx);
+    const tickerData = cfg.ledMode ? buildLEDItems() : buildTickerItems(ctx);
 
     rows.push({ canvas, ctx, offset: ri * 300, tickerData });
   }
@@ -663,7 +830,7 @@ function rebuildLED() {
     rows.forEach(row => {
       row.canvas.width  = row.canvas.offsetWidth  || window.innerWidth;
       row.canvas.height = row.canvas.offsetHeight || 100;
-      row.tickerData = buildTickerItems(row.ctx);
+      row.tickerData = cfg.ledMode ? buildLEDItems() : buildTickerItems(row.ctx);
     });
   };
 
