@@ -830,7 +830,10 @@ async function fetchOneTicker(sym) {
 
     try {
 
-      const r = await fetch(url, { cache: 'no-store' });
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 4000);
+      const r = await fetch(url, { cache: 'no-store', signal: controller.signal });
+      clearTimeout(timer);
 
       if (!r.ok) continue;
 
