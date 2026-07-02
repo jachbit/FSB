@@ -4,6 +4,7 @@
   "description": "F.O.C.U.S. live stock ticker banner",
   "start_url": "/FSB/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
   "background_color": "#0a0e1a",
   "theme_color": "#0a0e1a",
   "orientation": "landscape",
