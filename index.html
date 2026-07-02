@@ -1,679 +1,1346 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>F.O.C.U.S.© STOCKS BANNER — LITE</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0a0e1a">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="FSB">
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --navy:   #002b5c;
-    --orange: #e65c00;
-  }
-
-  html, body {
-    width: 100%; height: 100%;
-    background: #000;
-    overflow: hidden;
-    font-family: 'Share Tech Mono', monospace;
-  }
-
-  /* ── HEADER ── */
-  #header {
-    height: 40px;
-    background: var(--navy);
-    border-bottom: 3px solid var(--orange);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    position: relative;
-    z-index: 10;
-    white-space: nowrap;
-  }
-  .brand {
-    position: absolute;
-    left: 14px;
-    font-family: 'Orbitron', sans-serif;
-    font-size: 13px;
-    font-weight: 900;
-    color: #fff;
-    letter-spacing: 2px;
-    flex-shrink: 0;
-  }
-  .brand span { color: var(--orange); }
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    font-size: 11px;
-    color: #aac4e8;
-  }
-  #clock { color: #fff; font-size: 15px; font-family: 'Share Tech Mono', monospace; font-weight: 700; letter-spacing: 1px; }
-  .badge {
-    background: var(--orange); color: #fff;
-    padding: 4px 11px; border-radius: 3px;
-    font-size: 14px; font-weight: 900; letter-spacing: 2px;
-    font-family: 'Orbitron', sans-serif;
-  }
-  #last-update { font-size: 13px; color: #ffffff; font-family: 'Share Tech Mono', monospace; font-weight: 700; }
-  #gear-btn, #voice-btn {
-    background: none; border: 2px solid #ffffff;
-    color: #ffffff; cursor: pointer;
-    border-radius: 4px; padding: 3px 10px;
-    font-size: 18px; font-weight: 700;
-    transition: border-color .2s, color .2s;
-  }
-  #gear-btn:hover, #voice-btn:hover { border-color: var(--orange); color: var(--orange); }
-
-  /* ── CANVAS AREA ── */
-  #banner-wrap {
-    width: 100%;
-    height: calc(100vh - 40px);
-    background: #000;
-    display: flex;
-    flex-direction: column;
-    position: relative;
-  }
-  .led-row {
-    flex: 1;
-    position: relative;
-    overflow: hidden;
-  }
-  .led-canvas {
-    display: block;
-    width: 100%;
-    height: 100%;
-  }
-
-  /* Rainbow LED strips */
-  .rainbow-strip {
-    height: 5px;
-    width: 100%;
-    background: linear-gradient(90deg,
-      #ff0000,#ff6600,#ffff00,#00ff00,#00ffff,#0066ff,#aa00ff,#ff0000);
-    background-size: 400% 100%;
-    animation: rainbow-h 3s linear infinite;
-    flex-shrink: 0;
-  }
-  .rainbow-side {
-    position: absolute;
-    top: 0; bottom: 0;
-    width: 6px;
-    background: linear-gradient(180deg,
-      #ff0000,#ff6600,#ffff00,#00ff00,#00ffff,#0066ff,#aa00ff,#ff0000);
-    background-size: 100% 400%;
-    animation: rainbow-v 3s linear infinite;
-    z-index: 2;
-  }
-  .rainbow-side.left  { left: 0; }
-  .rainbow-side.right { right: 0; }
-  @keyframes rainbow-h {
-    from { background-position: 0% 50%; }
-    to   { background-position: 400% 50%; }
-  }
-  @keyframes rainbow-v {
-    from { background-position: 50% 0%; }
-    to   { background-position: 50% 400%; }
-  }
-  .rainbow-paused .rainbow-strip,
-  .rainbow-paused .rainbow-side { animation-play-state: paused; }
-
-  /* ── SETTINGS PANEL ── */
-  #overlay {
-    display: none; position: fixed; inset: 0;
-    z-index: 99; background: rgba(0,0,0,.5);
-  }
-  #overlay.show { display: block; }
-
-  #settings-panel {
-    position: fixed; top: 40px; right: 0;
-    width: 340px; height: calc(100vh - 40px);
-    background: #080d17;
-    border-left: 2px solid #1a2a4a;
-    padding: 18px 16px;
-    overflow-y: auto; z-index: 100;
-    transform: translateX(100%);
-    transition: transform .3s ease;
-    font-family: 'Share Tech Mono', monospace;
-  }
-  #settings-panel.open { transform: translateX(0); }
-
-  #settings-panel h2 {
-    color: var(--orange);
-    font-family: 'Orbitron', sans-serif;
-    font-size: 13px; letter-spacing: 2px;
-    margin-bottom: 16px;
-    border-bottom: 1px solid #1a2a4a;
-    padding-bottom: 8px;
-  }
-  .sgroup { margin-bottom: 18px; }
-  .sgroup > label {
-    display: block; color: #ffffff;
-    font-size: 12px; letter-spacing: 1px;
-    text-transform: uppercase; margin-bottom: 6px;
-    font-weight: 700;
-  }
-  .val { float: right; color: #ffcc00; font-size: 12px; font-weight: 700; }
-  input[type=range] { width: 100%; accent-color: var(--orange); cursor: pointer; margin-top: 4px; }
-  select, textarea, input[type=text] {
-    width: 100%; background: #0c1420; color: #ffffff;
-    border: 1px solid #334; border-radius: 4px;
-    padding: 7px 10px; font-size: 13px;
-    font-family: 'Share Tech Mono', monospace;
-    cursor: pointer;
-  }
-  textarea { resize: vertical; min-height: 80px; }
-  .color-grid {
-    display: grid; grid-template-columns: repeat(4, 1fr);
-    gap: 10px; margin-top: 6px;
-  }
-  .ci { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-  .ci span { font-size: 10px; color: #ffffff; text-transform: uppercase; font-weight: 700; }
-  input[type=color] {
-    width: 38px; height: 26px; padding: 2px;
-    border: 1px solid #1a2a4a; border-radius: 3px;
-    background: none; cursor: pointer;
-  }
-  .rows-btns { display: flex; gap: 6px; }
-  .rows-btns button {
-    flex: 1; padding: 8px;
-    background: #0c1420; color: #ffffff;
-    border: 1px solid #334; border-radius: 4px;
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 13px; font-weight: 700; cursor: pointer;
-    transition: background .2s, border-color .2s;
-  }
-  .rows-btns button.active {
-    background: var(--navy); border-color: var(--orange); color: #fff;
-  }
-  .sbtn {
-    width: 100%; padding: 10px; margin-top: 6px;
-    background: var(--orange); color: #fff;
-    border: none; border-radius: 4px;
-    font-family: 'Orbitron', sans-serif;
-    font-size: 12px; font-weight: 700; letter-spacing: 1px;
-    cursor: pointer; transition: opacity .2s;
-  }
-  .sbtn:hover { opacity: .85; }
-  .sbtn.sec {
-    background: #0c1420; border: 1px solid #334;
-    color: #ffffff; margin-top: 8px; font-size: 12px;
-  }
-  .csv-row { display: flex; gap: 6px; margin-top: 6px; }
-  .csv-row button {
-    flex: 1; padding: 8px;
-    background: #0c1420; color: #ffffff;
-    border: 1px solid #334; border-radius: 4px;
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 12px; font-weight: 700; cursor: pointer;
-    transition: border-color .2s, color .2s;
-  }
-  .csv-row button:hover { border-color: var(--orange); color: #fff; }
-  #csv-file { display: none; }
-
-  .divider { border: none; border-top: 1px solid #1a2a4a; margin: 14px 0; }
-  #status-line {
-    font-size: 12px; color: #ffffff; text-align: center; margin-top: 10px;
-    min-height: 16px; font-weight: 700;
-  }
-  #status-line.ok  { color: #00dd66; }
-  #status-line.err { color: #ff4444; }
-</style>
-</head>
-<body>
-
-<!-- HEADER -->
-<div id="header">
-  <div class="brand">F.O.C.U.S.<sup style="font-size:9px">©</sup> <span>STOCKS BANNER</span></div>
-  <div class="header-right">
-    <span id="clock">--:--:-- --</span>
-    <span class="badge">LITE</span>
-    <span id="last-update">NOT LOADED</span>
-    <button id="rainbow-btn" onclick="toggleRainbow()" title="Freeze/unfreeze border animation">🌈</button>
-    <button id="led-btn" onclick="toggleLED()" title="Toggle LED dot-matrix mode" style="background:none;border:2px solid #ffffff;color:#ffffff;cursor:pointer;border-radius:4px;padding:3px 10px;font-size:12px;font-weight:700;font-family:'Share Tech Mono',monospace;transition:border-color .2s,color .2s;">TEXT</button>
-    <button id="voice-btn" onclick="toggleVoice()" title="Toggle voice announcements">🔇</button>
-    <button id="gear-btn" onclick="togglePanel()">⚙</button>
+<meta name="apple-mobile-web-app-title" content="FSB">
+
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+<style>
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+
+
+  :root {
+
+    --navy:   #002b5c;
+
+    --orange: #e65c00;
+
+  }
+
+
+
+  html, body {
+
+    width: 100%; height: 100%;
+
+    background: #000;
+
+    overflow: hidden;
+
+    font-family: 'Share Tech Mono', monospace;
+
+  }
+
+
+
+  /* ── HEADER ── */
+
+  #header {
+
+    height: 40px;
+
+    background: var(--navy);
+
+    border-bottom: 3px solid var(--orange);
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    padding: 0 0 0 14px;
+
+    z-index: 10;
+
+    white-space: nowrap;
+
+  }
+
+  .brand {
+
+    font-family: 'Orbitron', sans-serif;
+
+    font-size: 13px;
+
+    font-weight: 900;
+
+    color: #fff;
+
+    letter-spacing: 2px;
+
+    flex-shrink: 0;
+
+  }
+
+  .brand span { color: var(--orange); }
+
+  .header-right {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 14px;
+
+    font-size: 11px;
+
+    color: #aac4e8;
+
+  }
+
+  #clock { color: #fff; font-size: 15px; font-family: 'Share Tech Mono', monospace; font-weight: 700; letter-spacing: 1px; }
+
+  .badge {
+
+    background: var(--orange); color: #fff;
+
+    padding: 4px 11px; border-radius: 3px;
+
+    font-size: 14px; font-weight: 900; letter-spacing: 2px;
+
+    font-family: 'Orbitron', sans-serif;
+
+  }
+
+  #last-update { font-size: 13px; color: #ffffff; font-family: 'Share Tech Mono', monospace; font-weight: 700; }
+
+  #gear-btn, #voice-btn {
+
+    background: none; border: 2px solid #ffffff;
+
+    color: #ffffff; cursor: pointer;
+
+    border-radius: 4px; padding: 3px 10px;
+
+    font-size: 18px; font-weight: 700;
+
+    transition: border-color .2s, color .2s;
+
+  }
+
+  #gear-btn:hover, #voice-btn:hover { border-color: var(--orange); color: var(--orange); }
+
+
+
+  /* ── CANVAS AREA ── */
+
+  #banner-wrap {
+
+    width: 100%;
+
+    height: calc(100vh - 40px);
+
+    background: #000;
+
+    display: flex;
+
+    flex-direction: column;
+
+    position: relative;
+
+  }
+
+  .led-row {
+
+    flex: 1;
+
+    position: relative;
+
+    overflow: hidden;
+
+  }
+
+  .led-canvas {
+
+    display: block;
+
+    width: 100%;
+
+    height: 100%;
+
+  }
+
+
+
+  /* Rainbow LED strips */
+
+  .rainbow-strip {
+
+    height: 5px;
+
+    width: 100%;
+
+    background: linear-gradient(90deg,
+
+      #ff0000,#ff6600,#ffff00,#00ff00,#00ffff,#0066ff,#aa00ff,#ff0000);
+
+    background-size: 400% 100%;
+
+    animation: rainbow-h 3s linear infinite;
+
+    flex-shrink: 0;
+
+  }
+
+  .rainbow-side {
+
+    position: absolute;
+
+    top: 0; bottom: 0;
+
+    width: 6px;
+
+    background: linear-gradient(180deg,
+
+      #ff0000,#ff6600,#ffff00,#00ff00,#00ffff,#0066ff,#aa00ff,#ff0000);
+
+    background-size: 100% 400%;
+
+    animation: rainbow-v 3s linear infinite;
+
+    z-index: 2;
+
+  }
+
+  .rainbow-side.left  { left: 0; }
+
+  .rainbow-side.right { right: 0; }
+
+  @keyframes rainbow-h {
+
+    from { background-position: 0% 50%; }
+
+    to   { background-position: 400% 50%; }
+
+  }
+
+  @keyframes rainbow-v {
+
+    from { background-position: 50% 0%; }
+
+    to   { background-position: 50% 400%; }
+
+  }
+
+  .rainbow-paused .rainbow-strip,
+
+  .rainbow-paused .rainbow-side { animation-play-state: paused; }
+
+
+
+  /* ── SETTINGS PANEL ── */
+
+  #overlay {
+
+    display: none; position: fixed; inset: 0;
+
+    z-index: 99; background: rgba(0,0,0,.5);
+
+  }
+
+  #overlay.show { display: block; }
+
+
+
+  #settings-panel {
+
+    position: fixed; top: 40px; right: 0;
+
+    width: 340px; height: calc(100vh - 40px);
+
+    background: #080d17;
+
+    border-left: 2px solid #1a2a4a;
+
+    padding: 18px 16px;
+
+    overflow-y: auto; z-index: 100;
+
+    transform: translateX(100%);
+
+    transition: transform .3s ease;
+
+    font-family: 'Share Tech Mono', monospace;
+
+  }
+
+  #settings-panel.open { transform: translateX(0); }
+
+
+
+  #settings-panel h2 {
+
+    color: var(--orange);
+
+    font-family: 'Orbitron', sans-serif;
+
+    font-size: 13px; letter-spacing: 2px;
+
+    margin-bottom: 16px;
+
+    border-bottom: 1px solid #1a2a4a;
+
+    padding-bottom: 8px;
+
+  }
+
+  .sgroup { margin-bottom: 18px; }
+
+  .sgroup > label {
+
+    display: block; color: #ffffff;
+
+    font-size: 12px; letter-spacing: 1px;
+
+    text-transform: uppercase; margin-bottom: 6px;
+
+    font-weight: 700;
+
+  }
+
+  .val { float: right; color: #ffcc00; font-size: 12px; font-weight: 700; }
+
+  input[type=range] { width: 100%; accent-color: var(--orange); cursor: pointer; margin-top: 4px; }
+
+  select, textarea, input[type=text] {
+
+    width: 100%; background: #0c1420; color: #ffffff;
+
+    border: 1px solid #334; border-radius: 4px;
+
+    padding: 7px 10px; font-size: 13px;
+
+    font-family: 'Share Tech Mono', monospace;
+
+    cursor: pointer;
+
+  }
+
+  textarea { resize: vertical; min-height: 80px; }
+
+  .color-grid {
+
+    display: grid; grid-template-columns: repeat(4, 1fr);
+
+    gap: 10px; margin-top: 6px;
+
+  }
+
+  .ci { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+
+  .ci span { font-size: 10px; color: #ffffff; text-transform: uppercase; font-weight: 700; }
+
+  input[type=color] {
+
+    width: 38px; height: 26px; padding: 2px;
+
+    border: 1px solid #1a2a4a; border-radius: 3px;
+
+    background: none; cursor: pointer;
+
+  }
+
+  .rows-btns { display: flex; gap: 6px; }
+
+  .rows-btns button {
+
+    flex: 1; padding: 8px;
+
+    background: #0c1420; color: #ffffff;
+
+    border: 1px solid #334; border-radius: 4px;
+
+    font-family: 'Share Tech Mono', monospace;
+
+    font-size: 13px; font-weight: 700; cursor: pointer;
+
+    transition: background .2s, border-color .2s;
+
+  }
+
+  .rows-btns button.active {
+
+    background: var(--navy); border-color: var(--orange); color: #fff;
+
+  }
+
+  .sbtn {
+
+    width: 100%; padding: 10px; margin-top: 6px;
+
+    background: var(--orange); color: #fff;
+
+    border: none; border-radius: 4px;
+
+    font-family: 'Orbitron', sans-serif;
+
+    font-size: 12px; font-weight: 700; letter-spacing: 1px;
+
+    cursor: pointer; transition: opacity .2s;
+
+  }
+
+  .sbtn:hover { opacity: .85; }
+
+  .sbtn.sec {
+
+    background: #0c1420; border: 1px solid #334;
+
+    color: #ffffff; margin-top: 8px; font-size: 12px;
+
+  }
+
+  .csv-row { display: flex; gap: 6px; margin-top: 6px; }
+
+  .csv-row button {
+
+    flex: 1; padding: 8px;
+
+    background: #0c1420; color: #ffffff;
+
+    border: 1px solid #334; border-radius: 4px;
+
+    font-family: 'Share Tech Mono', monospace;
+
+    font-size: 12px; font-weight: 700; cursor: pointer;
+
+    transition: border-color .2s, color .2s;
+
+  }
+
+  .csv-row button:hover { border-color: var(--orange); color: #fff; }
+
+  #csv-file { display: none; }
+
+
+
+  .divider { border: none; border-top: 1px solid #1a2a4a; margin: 14px 0; }
+
+  #status-line {
+
+    font-size: 12px; color: #ffffff; text-align: center; margin-top: 10px;
+
+    min-height: 16px; font-weight: 700;
+
+  }
+
+  #status-line.ok  { color: #00dd66; }
+
+  #status-line.err { color: #ff4444; }
+
+  @media (display-mode: window-controls-overlay) {
+    header { justify-content: center; position: relative; padding: 0; }
+    .brand { position: absolute; left: 14px; }
+    .header-right { margin: 0 120px; }
+  }
+</style>
+
+</head>
+
+<body>
+
+
+
+<!-- HEADER -->
+
+<div id="header">
+
+  <div class="brand">F.O.C.U.S.<sup style="font-size:9px">©</sup> <span>STOCKS BANNER</span></div>
+
+  <div class="header-right">
+
+    <span id="clock">--:--:-- --</span>
+
+    <span class="badge">LITE</span>
+
+    <span id="last-update">NOT LOADED</span>
+
+    <button id="rainbow-btn" onclick="toggleRainbow()" title="Freeze/unfreeze border animation">🌈</button>
+
+    <button id="led-btn" onclick="toggleLED()" title="Toggle LED dot-matrix mode" style="background:none;border:2px solid #ffffff;color:#ffffff;cursor:pointer;border-radius:4px;padding:3px 10px;font-size:12px;font-weight:700;font-family:'Share Tech Mono',monospace;transition:border-color .2s,color .2s;">TEXT</button>
+
+    <button id="voice-btn" onclick="toggleVoice()" title="Toggle voice announcements">🔇</button>
+
+    <button id="gear-btn" onclick="togglePanel()">⚙</button>
+
     <button onclick="window.open(location.href,'_blank')" title="Open in browser tab" style="background:none;border:2px solid #fff;color:#fff;cursor:pointer;border-radius:4px;padding:3px 10px;font-size:13px;font-weight:700" onmouseover="this.style.borderColor='#e65c00';this.style.color='#e65c00'" onmouseout="this.style.borderColor='#fff';this.style.color='#fff'">🌐</button>
     <button id="fs-btn" onclick="toggleFullscreen()" title="Hide/show title bar" style="background:none;border:2px solid #fff;color:#fff;cursor:pointer;border-radius:4px;padding:3px 10px;font-size:13px;font-weight:700" onmouseover="this.style.borderColor='#e65c00';this.style.color='#e65c00'" onmouseout="this.style.borderColor='#fff';this.style.color='#fff'">⛶</button>
     <button id="pwa-install-btn" onclick="pwaInstall()" title="Install as App" style="display:none;background:#e65c00;border:2px solid #e65c00;color:#fff;cursor:pointer;border-radius:4px 0 0 4px;padding:3px 10px;font-size:11px;font-weight:700" onmouseover="this.style.background='#ff7a1a'" onmouseout="this.style.background='#e65c00'">⬇ Install App</button>
-  </div>
-</div>
-
-<!-- BANNER -->
-<div id="banner-wrap">
-  <div class="rainbow-strip"></div>
-  <div class="rainbow-side left"></div>
-  <div class="rainbow-side right"></div>
-  <!-- canvas rows injected by JS -->
-  <div class="rainbow-strip"></div>
-</div>
-
-<!-- OVERLAY + PANEL -->
-<div id="overlay" onclick="togglePanel()"></div>
-<div id="settings-panel">
-  <h2>⚙ BANNER SETTINGS</h2>
-
-  <div class="sgroup">
-    <label>Text Font</label>
-    <select id="sFont" onchange="cfg.font=this.value;rebuildLED()">
-      <option value="'Share Tech Mono', monospace" selected>Share Tech Mono (Dotted)</option>
-      <option value="'Courier New', monospace">Courier New (Classic)</option>
-      <option value="'Orbitron', sans-serif">Orbitron (Futuristic)</option>
-      <option value="'Rajdhani', sans-serif">Rajdhani (Modern)</option>
-      <option value="Arial Black, sans-serif">Arial Black (Bold)</option>
-      <option value="Impact, sans-serif">Impact (Heavy)</option>
-    </select>
-  </div>
-
-  <div class="sgroup">
-    <label>Font Size (px) <span class="val" id="vDot">80</span></label>
-    <input type="range" id="sDot" min="20" max="120" step="2" value="80" oninput="cfg.dotSize=+this.value;document.getElementById('vDot').textContent=this.value;rebuildLED()">
-  </div>
-
-  <div class="sgroup" style="display:none">
-    <label>Dot Gap <span class="val" id="vGap">2</span></label>
-    <input type="range" id="sGap" min="1" max="6" value="2" oninput="cfg.dotGap=+this.value;document.getElementById('vGap').textContent=this.value;rebuildLED()">
-  </div>
-
-  <div class="sgroup">
-    <label>Scroll Speed <span class="val" id="vSpeed">Normal</span></label>
-    <input type="range" id="sSpeed" min="0.3" max="5" step="0.1" value="1.5"
-      oninput="cfg.speed=+this.value;document.getElementById('vSpeed').textContent=speedLabel(+this.value)">
-  </div>
-
-  <div class="sgroup">
-    <label>Scroll Rows</label>
-    <div class="rows-btns">
-      <button id="rb1" class="active" onclick="setRows(1)">1 ROW</button>
-      <button id="rb2" onclick="setRows(2)">2 ROWS</button>
-      <button id="rb3" onclick="setRows(3)">3 ROWS</button>
-    </div>
-  </div>
-
-  <div class="sgroup">
-    <label>Colors</label>
-    <div class="color-grid">
-      <div class="ci"><input type="color" id="cBg"    value="#000000" oninput="cfg.bgColor=this.value"><span>BG</span></div>
-      <div class="ci"><input type="color" id="cSym"   value="#ffffff" oninput="cfg.symColor=this.value;rebuildLED()"><span>SYMBOL</span></div>
-      <div class="ci"><input type="color" id="cPrice" value="#00e5ff" oninput="cfg.priceColor=this.value;rebuildLED()"><span>PRICE</span></div>
-      <div class="ci"><input type="color" id="cUp"    value="#00ff88" oninput="cfg.upColor=this.value;rebuildLED()"><span>UP ▲</span></div>
-      <div class="ci"><input type="color" id="cDown"  value="#ff3b3b" oninput="cfg.downColor=this.value;rebuildLED()"><span>DOWN ▼</span></div>
-      <div class="ci"><input type="color" id="cDim"   value="#1a1a1a" oninput="cfg.dimColor=this.value"><span>UNLIT</span></div>
-      <div class="ci"><input type="color" id="cDiv"   value="#e65c00" oninput="cfg.divColor=this.value;rebuildLED()"><span>DIVIDER</span></div>
-    </div>
-  </div>
-
-  <hr class="divider">
-
-  <div class="sgroup">
-    <label>Ticker List</label>
-    <textarea id="sTickers">SPY, QQQ, AAPL, NVDA, TSLA, MSFT, AMZN, META, GOOGL, AMD, PLTR, SMCI, ^GSPC, ^DJI, ^VIX, BTC-USD, GLD, SLV, USO, TLT</textarea>
-    <button class="sbtn" style="margin-top:6px" onclick="applyTickers()">APPLY TICKERS</button>
-  </div>
-
-  <div class="sgroup">
-    <label>CSV Import / Export</label>
-    <div class="csv-row">
-      <button onclick="exportCSV()">⬇ EXPORT CSV</button>
-      <button onclick="document.getElementById('csv-file').click()">⬆ IMPORT CSV</button>
-    </div>
-    <input type="file" id="csv-file" accept=".csv,.txt" onchange="importCSV(this)">
-    <div style="font-size:12px;color:#ffffff;margin-top:6px;line-height:1.6">
-      CSV format: one ticker per line, or comma-separated.<br>
-      First line can be a list name (e.g. "Positions").
-    </div>
-  </div>
-
-  <hr class="divider">
-
-  <div class="sgroup">
-    <button class="sbtn sec" onclick="forceRefresh()">↻ REFRESH PRICES NOW</button>
-  </div>
-
-  <hr class="divider">
-
-  <div class="sgroup">
-    <label>Voice</label>
-    <select id="voice-select" onchange="voiceIdx=+this.value">
-      <option value="0">Loading voices...</option>
-    </select>
-  </div>
-
-  <div class="sgroup">
-    <label>Voice Volume <span class="val" id="vVol">100%</span></label>
-    <input type="range" id="sVol" min="0" max="1" step="0.05" value="1"
-      oninput="voiceVol=+this.value;document.getElementById('vVol').textContent=Math.round(this.value*100)+'%'">
-  </div>
-
-  <div class="sgroup">
-    <label>Voice Speed <span class="val" id="vRate">Normal</span></label>
-    <input type="range" id="sRate" min="0.5" max="2" step="0.1" value="1.1"
-      oninput="voiceRate=+this.value;document.getElementById('vRate').textContent=this.value+'x'">
-  </div>
-
-  <div class="sgroup">
-    <button class="sbtn sec" onclick="resetDefaults()">RESET DEFAULTS</button>
-  </div>
-
-  <div id="status-line">—</div>
-</div>
-
-<script>
-// ── CONFIG ───────────────────────────────────────────────────────────────────
-const cfg = {
-  ledMode:    false,
-  dotSize:    80,
-  dotGap:     2,
-  glow:       18,
-  speed:      1.5,
-  font:       "'Share Tech Mono', monospace",
-  bgColor:    '#000000',
-  symColor:   '#ffffff',
-  priceColor: '#00e5ff',
-  upColor:    '#00ff88',
-  downColor:  '#ff3b3b',
-  dimColor:   '#1a1a1a',
-  divColor:   '#e65c00',
-};
-
-let tickers = [
-  'SPY','QQQ','AAPL','NVDA','TSLA','MSFT','AMZN','META','GOOGL',
-  'AMD','PLTR','SMCI','^GSPC','^DJI','^VIX','BTC-USD','GLD','SLV','USO','TLT'
-];
-let quoteData = {};
-let rows = [];      // [{canvas, ctx, offset, dotMap, totalW}]
-let numRows = 1;
-let animId = null;
-let refreshTimer = null;
-const REFRESH_MS = 60000;
-
-// ── CLOCK ────────────────────────────────────────────────────────────────────
-function updateClock() {
-  const t = new Date().toLocaleTimeString('en-US',
-    {hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true,timeZone:'America/New_York'});
-  document.getElementById('clock').textContent = t + ' ET';
-}
-setInterval(updateClock, 1000);
-updateClock();
-
-// ── FETCH PRICES ─────────────────────────────────────────────────────────────
-function setStatus(msg, type='') {
-  const el = document.getElementById('status-line');
-  el.textContent = msg; el.className = type;
-}
-
-async function fetchOneTicker(sym) {
-  const enc   = encodeURIComponent(sym);
-  const yfUrl = `https://query2.finance.yahoo.com/v8/finance/chart/${enc}?interval=1d&range=2d`;
-  const urls  = [
-    `https://corsproxy.io/?url=${encodeURIComponent(yfUrl)}`,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(yfUrl)}`,
-    yfUrl,
-  ];
-  for (const url of urls) {
-    try {
-      const r = await fetch(url, { cache: 'no-store' });
-      if (!r.ok) continue;
-      const j    = await r.json();
-      const meta = j?.chart?.result?.[0]?.meta;
-      if (!meta) continue;
-      const price = meta.regularMarketPrice ?? meta.previousClose;
-      if (!price) continue;
-      const prev  = meta.chartPreviousClose ?? meta.previousClose ?? price;
-      const chg   = price - prev;
-      const pct   = prev ? (chg / prev) * 100 : 0;
-      return { price, chg, pct };
-    } catch { /* try next url */ }
-  }
-  return null;
-}
-
-async function fetchAll() {
-  setStatus('Fetching prices…');
-  const results = await Promise.all(tickers.map(sym =>
-    fetchOneTicker(sym).then(d => ({ sym, d }))
-  ));
-  let loaded = 0;
-  results.forEach(({ sym, d }) => {
-    if (d) { quoteData[sym] = d; loaded++; }
-  });
-  if (!loaded) {
-    setStatus('⚠ No prices loaded — check connection', 'err');
-  } else {
-    const now = new Date().toLocaleTimeString('en-US',
-      { hour:'2-digit', minute:'2-digit', hour12:true, timeZone:'America/New_York' });
-    document.getElementById('last-update').textContent = 'Updated ' + now + ' ET';
-    setStatus(`✓ ${loaded} / ${tickers.length} tickers loaded`, 'ok');
-  }
-  // Refresh ticker segment data in-place — do NOT reset offsets
-  if (rows.length > 0) {
-    rows.forEach(row => {
-      row.tickerData = cfg.ledMode ? buildLEDItems(row.canvas.height) : buildTickerItems(row.ctx);
-    });
-  } else {
-    rebuildLED();
-  }
-}
-
-// ── TICKER TEXT SEGMENTS ──────────────────────────────────────────────────────
-// Simple fillText rendering — no dot matrix, no canvas size limits.
-function buildTickerItems(ctx) {
-  const fs   = cfg.dotSize;            // slider value IS the font size in px
-  const font = `bold ${fs}px ${cfg.font}`;
-  ctx.font   = font;
-  const GAP  = fs * 0.9;              // space between tickers
-
-  const segments  = [];  // {text, color, x, w}
-  const markers   = [];  // {sym, x} for voice trigger
-  let curX = 0;
-
-  tickers.forEach(sym => {
-    const d    = quoteData[sym];
-    const DISP_NAMES = {
-      '^GSPC':'S&P 500','^DJI':'DOW','^VIX':'VIX',
-      'BTC-USD':'BTC','ETH-USD':'ETH',
-    };
-    const disp = DISP_NAMES[sym] || sym.replace('^','').replace('-USD',' USD');
-    markers.push({ sym, x: curX });
-
-    // Symbol
-    const symText = disp + '  ';
-    const symW    = ctx.measureText(symText).width;
-    segments.push({ text: symText, color: cfg.symColor, x: curX, w: symW });
-    curX += symW;
-
-    if (d) {
-      const pStr = d.price >= 1000
-        ? d.price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})
-        : d.price.toFixed(2);
-      const priceText = pStr + '  ';
-      const priceW    = ctx.measureText(priceText).width;
-      segments.push({ text: priceText, color: cfg.priceColor, x: curX, w: priceW });
-      curX += priceW;
-
-      const sign    = d.chg >= 0 ? '+' : '';
-      const arrow   = d.chg > 0 ? '▲' : d.chg < 0 ? '▼' : '■';
-      const chgText = `${arrow}${sign}${d.chg.toFixed(2)} (${sign}${d.pct.toFixed(2)}%)`;
-      const chgColor = d.chg > 0 ? cfg.upColor : d.chg < 0 ? cfg.downColor : '#888';
-      const chgW     = ctx.measureText(chgText).width;
-      segments.push({ text: chgText, color: chgColor, x: curX, w: chgW });
-      curX += chgW;
-    } else {
-      const naW = ctx.measureText('---').width;
-      segments.push({ text: '---', color: '#555', x: curX, w: naW });
-      curX += naW;
-    }
-
-    // Divider gap
-    const divText = '  |  ';
-    const divW    = ctx.measureText(divText).width;
-    segments.push({ text: divText, color: cfg.divColor, x: curX, w: divW });
-    curX += divW + GAP;
-  });
-
-  return { segments, totalWidth: curX, markers, font };
-}
-
-// ── LED DOT-MATRIX ENGINE ─────────────────────────────────────────────────────
-// Fixed small dotGrid — taller banner = more rows = more detail (classic LED approach)
-const LED_DOT_PX = 6; // physical size of each dot cell in pixels
-
-function textToDots(text, dotGrid, numRows, font) {
-  // Render at 4× resolution for crisp sampling of thin strokes
-  const scale    = 4;
-  const dg4      = dotGrid * scale;
-  const cellH    = numRows * dg4;
-  const fontSize = Math.round(cellH * 0.88);
-  const oc       = document.createElement('canvas');
-  oc.height      = cellH;
-  const octx     = oc.getContext('2d');
-  octx.font      = `900 ${fontSize}px ${font}`;
-  const tw       = octx.measureText(text).width;
-  oc.width       = Math.max(1, Math.ceil(tw) + dg4 * 2);
-  octx.font      = `900 ${fontSize}px ${font}`;
-  octx.fillStyle = '#fff';
-  octx.fillText(text, dg4, fontSize * 0.88);
-  const imgData  = octx.getImageData(0, 0, oc.width, oc.height);
-  const W4       = oc.width;
-  const dots     = [];
-  const gridW    = Math.ceil(oc.width / dg4);
-  // Sample each dot cell: count lit pixels across a 5×5 sub-grid
-  for (let gy = 0; gy < numRows; gy++) {
-    for (let gx = 0; gx < gridW; gx++) {
-      let lit = 0;
-      for (let sy = 1; sy <= 3; sy++) {
-        for (let sx = 1; sx <= 3; sx++) {
-          const px = Math.floor(gx * dg4 + sx * dg4 / 4);
-          const py = Math.floor(gy * dg4 + sy * dg4 / 4);
-          if (px < W4 && py < oc.height &&
-              imgData.data[(py * W4 + px) * 4 + 3] > 40) lit++;
-        }
-      }
-      if (lit >= 2) dots.push([gx, gy]); // 2+ of 9 samples lit → dot on
-    }
-  }
-  return { dots, gridW };
-}
-
-function buildLEDItems(canvasH) {
-  const dotGrid = LED_DOT_PX;
-  const numRows = Math.max(7, Math.floor(canvasH / dotGrid)); // fills full height
-  const GAP     = 8; // dot columns gap between tickers
-  const font    = cfg.font;
-
-  const DISP_NAMES = {
-    '^GSPC':'S&P 500','^DJI':'DOW','^VIX':'VIX','BTC-USD':'BTC','ETH-USD':'ETH',
-  };
-
-  const segments  = [];
-  const markers   = [];
-  let curGridX = 0;
-
-  tickers.forEach(sym => {
-    const d    = quoteData[sym];
-    const disp = DISP_NAMES[sym] || sym.replace('^','').replace('-USD',' USD');
-    const dir  = d ? (d.chg > 0 ? 'up' : d.chg < 0 ? 'down' : 'flat') : 'na';
-    markers.push({ sym, gridX: curGridX });
-
-    const parts = [];
-    parts.push({ m: textToDots(disp, dotGrid, numRows, font), c: cfg.symColor });
-    parts.push({ m: { dots:[], gridW: 2 }, c: '#000' });
-
-    if (d) {
-      const pStr = d.price >= 1000
-        ? d.price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})
-        : d.price.toFixed(2);
-      parts.push({ m: textToDots(pStr, dotGrid, numRows, font), c: cfg.priceColor });
-      parts.push({ m: { dots:[], gridW: 2 }, c: '#000' });
-      const sign     = d.chg >= 0 ? '+' : '';
-      const arrow    = d.chg > 0 ? '▲' : d.chg < 0 ? '▼' : '■';
-      const cStr     = `${arrow}${sign}${d.chg.toFixed(2)} (${sign}${d.pct.toFixed(2)}%)`;
-      const chgColor = dir==='up' ? cfg.upColor : dir==='down' ? cfg.downColor : '#888';
-      parts.push({ m: textToDots(cStr, dotGrid, numRows, font), c: chgColor });
-    } else {
-      parts.push({ m: textToDots('---', dotGrid, numRows, font), c: '#555' });
-    }
-    parts.push({ m: { dots:[], gridW: 3 }, c: '#000' });
-    parts.push({ m: textToDots('|', dotGrid, numRows, font), c: cfg.divColor });
-
-    const itemDots = [];
-    let ix = 0;
-    parts.forEach(({ m, c }) => {
-      m.dots.forEach(([gx, gy]) => itemDots.push({ gx: gx + ix, gy, color: c }));
-      ix += m.gridW + 1;
-    });
-    segments.push({ dots: itemDots, gridW: ix, startGridX: curGridX });
-    curGridX += ix + GAP;
-  });
-
-  return { segments, totalGridW: curGridX, markers, dotGrid, numRows };
-}
-
-// ── VOICE ENGINE ─────────────────────────────────────────────────────────────
-let voiceOn   = false;
-const spokenAt = {}; // sym → timestamp, prevents double-firing
-let voices    = [];
-let voiceIdx  = 0;
-let voiceVol  = 1.0;
-let voiceRate = 1.1;
-
-const NAMES = {
-  'SPY':'S P Y','QQQ':'Q Q Q','AAPL':'Apple','NVDA':'Nvidia','TSLA':'Tesla',
-  'MSFT':'Microsoft','AMZN':'Amazon','META':'Meta','GOOGL':'Google','AMD':'A M D',
-  'PLTR':'Palantir','SMCI':'Super Micro','BTC-USD':'Bitcoin',
-  '^GSPC':'S and P 500','^DJI':'Dow Jones','^VIX':'Vix',
-  'GLD':'Gold','SLV':'Silver','USO':'Oil','TLT':'T L T',
-};
-
-function loadVoices() {
-  voices = window.speechSynthesis.getVoices().filter(v => v.lang.startsWith('en'));
-  const sel = document.getElementById('voice-select');
-  if (!sel || !voices.length) return;
-  sel.innerHTML = voices.map((v, i) =>
-    `<option value="${i}">${v.name} (${v.lang})</option>`
-  ).join('');
-}
-if (window.speechSynthesis) {
-  window.speechSynthesis.onvoiceschanged = loadVoices;
-  setTimeout(loadVoices, 300);
-}
-
-function speakTicker(sym) {
-  if (!voiceOn || !window.speechSynthesis) return;
-  const d = quoteData[sym];
-  if (!d) return;
-  const name   = NAMES[sym] || sym.replace('^','').replace('-USD','');
-  const dir    = d.chg > 0 ? 'up' : d.chg < 0 ? 'down' : 'unchanged';
-  const pStr   = d.price.toFixed(2);
-  const pctStr = Math.abs(d.pct).toFixed(1);
-  const text   = `${name}... ${pStr}...... ${dir}...... ${pctStr} percent`;
-  const now    = Date.now();
-  if (spokenAt[sym] && now - spokenAt[sym] < 8000) return; // 8s cooldown per ticker
-  spokenAt[sym] = now;
-  window.speechSynthesis.cancel();
-  const utt  = new SpeechSynthesisUtterance(text);
-  if (voices[voiceIdx]) utt.voice = voices[voiceIdx];
-  utt.rate   = voiceRate;
-  utt.pitch  = 1.0;
-  utt.volume = voiceVol;
-  window.speechSynthesis.speak(utt);
-}
-
-function toggleRainbow() {
-  const wrap = document.getElementById('banner-wrap');
-  const btn  = document.getElementById('rainbow-btn');
-  const paused = wrap.classList.toggle('rainbow-paused');
-  btn.style.opacity = paused ? '0.4' : '1';
-}
-
+  </div>
+
+</div>
+
+
+
+<!-- BANNER -->
+
+<div id="banner-wrap">
+
+  <div class="rainbow-strip"></div>
+
+  <div class="rainbow-side left"></div>
+
+  <div class="rainbow-side right"></div>
+
+  <!-- canvas rows injected by JS -->
+
+  <div class="rainbow-strip"></div>
+
+</div>
+
+
+
+<!-- OVERLAY + PANEL -->
+
+<div id="overlay" onclick="togglePanel()"></div>
+
+<div id="settings-panel">
+
+  <h2>⚙ BANNER SETTINGS</h2>
+
+
+
+  <div class="sgroup">
+
+    <label>Text Font</label>
+
+    <select id="sFont" onchange="cfg.font=this.value;rebuildLED()">
+
+      <option value="'Share Tech Mono', monospace" selected>Share Tech Mono (Dotted)</option>
+
+      <option value="'Courier New', monospace">Courier New (Classic)</option>
+
+      <option value="'Orbitron', sans-serif">Orbitron (Futuristic)</option>
+
+      <option value="'Rajdhani', sans-serif">Rajdhani (Modern)</option>
+
+      <option value="Arial Black, sans-serif">Arial Black (Bold)</option>
+
+      <option value="Impact, sans-serif">Impact (Heavy)</option>
+
+    </select>
+
+  </div>
+
+
+
+  <div class="sgroup">
+
+    <label>Font Size (px) <span class="val" id="vDot">80</span></label>
+
+    <input type="range" id="sDot" min="20" max="120" step="2" value="80" oninput="cfg.dotSize=+this.value;document.getElementById('vDot').textContent=this.value;rebuildLED()">
+
+  </div>
+
+
+
+  <div class="sgroup" style="display:none">
+
+    <label>Dot Gap <span class="val" id="vGap">2</span></label>
+
+    <input type="range" id="sGap" min="1" max="6" value="2" oninput="cfg.dotGap=+this.value;document.getElementById('vGap').textContent=this.value;rebuildLED()">
+
+  </div>
+
+
+
+  <div class="sgroup">
+
+    <label>Scroll Speed <span class="val" id="vSpeed">Normal</span></label>
+
+    <input type="range" id="sSpeed" min="0.3" max="5" step="0.1" value="1.5"
+
+      oninput="cfg.speed=+this.value;document.getElementById('vSpeed').textContent=speedLabel(+this.value)">
+
+  </div>
+
+
+
+  <div class="sgroup">
+
+    <label>Scroll Rows</label>
+
+    <div class="rows-btns">
+
+      <button id="rb1" class="active" onclick="setRows(1)">1 ROW</button>
+
+      <button id="rb2" onclick="setRows(2)">2 ROWS</button>
+
+      <button id="rb3" onclick="setRows(3)">3 ROWS</button>
+
+    </div>
+
+  </div>
+
+
+
+  <div class="sgroup">
+
+    <label>Colors</label>
+
+    <div class="color-grid">
+
+      <div class="ci"><input type="color" id="cBg"    value="#000000" oninput="cfg.bgColor=this.value"><span>BG</span></div>
+
+      <div class="ci"><input type="color" id="cSym"   value="#ffffff" oninput="cfg.symColor=this.value;rebuildLED()"><span>SYMBOL</span></div>
+
+      <div class="ci"><input type="color" id="cPrice" value="#00e5ff" oninput="cfg.priceColor=this.value;rebuildLED()"><span>PRICE</span></div>
+
+      <div class="ci"><input type="color" id="cUp"    value="#00ff88" oninput="cfg.upColor=this.value;rebuildLED()"><span>UP ▲</span></div>
+
+      <div class="ci"><input type="color" id="cDown"  value="#ff3b3b" oninput="cfg.downColor=this.value;rebuildLED()"><span>DOWN ▼</span></div>
+
+      <div class="ci"><input type="color" id="cDim"   value="#1a1a1a" oninput="cfg.dimColor=this.value"><span>UNLIT</span></div>
+
+      <div class="ci"><input type="color" id="cDiv"   value="#e65c00" oninput="cfg.divColor=this.value;rebuildLED()"><span>DIVIDER</span></div>
+
+    </div>
+
+  </div>
+
+
+
+  <hr class="divider">
+
+
+
+  <div class="sgroup">
+
+    <label>Ticker List</label>
+
+    <textarea id="sTickers">SPY, QQQ, AAPL, NVDA, TSLA, MSFT, AMZN, META, GOOGL, AMD, PLTR, SMCI, ^GSPC, ^DJI, ^VIX, BTC-USD, GLD, SLV, USO, TLT</textarea>
+
+    <button class="sbtn" style="margin-top:6px" onclick="applyTickers()">APPLY TICKERS</button>
+
+  </div>
+
+
+
+  <div class="sgroup">
+
+    <label>CSV Import / Export</label>
+
+    <div class="csv-row">
+
+      <button onclick="exportCSV()">⬇ EXPORT CSV</button>
+
+      <button onclick="document.getElementById('csv-file').click()">⬆ IMPORT CSV</button>
+
+    </div>
+
+    <input type="file" id="csv-file" accept=".csv,.txt" onchange="importCSV(this)">
+
+    <div style="font-size:12px;color:#ffffff;margin-top:6px;line-height:1.6">
+
+      CSV format: one ticker per line, or comma-separated.<br>
+
+      First line can be a list name (e.g. "Positions").
+
+    </div>
+
+  </div>
+
+
+
+  <hr class="divider">
+
+
+
+  <div class="sgroup">
+
+    <button class="sbtn sec" onclick="forceRefresh()">↻ REFRESH PRICES NOW</button>
+
+  </div>
+
+
+
+  <hr class="divider">
+
+
+
+  <div class="sgroup">
+
+    <label>Voice</label>
+
+    <select id="voice-select" onchange="voiceIdx=+this.value">
+
+      <option value="0">Loading voices...</option>
+
+    </select>
+
+  </div>
+
+
+
+  <div class="sgroup">
+
+    <label>Voice Volume <span class="val" id="vVol">100%</span></label>
+
+    <input type="range" id="sVol" min="0" max="1" step="0.05" value="1"
+
+      oninput="voiceVol=+this.value;document.getElementById('vVol').textContent=Math.round(this.value*100)+'%'">
+
+  </div>
+
+
+
+  <div class="sgroup">
+
+    <label>Voice Speed <span class="val" id="vRate">Normal</span></label>
+
+    <input type="range" id="sRate" min="0.5" max="2" step="0.1" value="1.1"
+
+      oninput="voiceRate=+this.value;document.getElementById('vRate').textContent=this.value+'x'">
+
+  </div>
+
+
+
+  <div class="sgroup">
+
+    <button class="sbtn sec" onclick="resetDefaults()">RESET DEFAULTS</button>
+
+  </div>
+
+
+
+  <div id="status-line">—</div>
+
+</div>
+
+
+
+<script>
+
+// ── CONFIG ───────────────────────────────────────────────────────────────────
+
+const cfg = {
+
+  ledMode:    false,
+
+  dotSize:    80,
+
+  dotGap:     2,
+
+  glow:       18,
+
+  speed:      1.5,
+
+  font:       "'Share Tech Mono', monospace",
+
+  bgColor:    '#000000',
+
+  symColor:   '#ffffff',
+
+  priceColor: '#00e5ff',
+
+  upColor:    '#00ff88',
+
+  downColor:  '#ff3b3b',
+
+  dimColor:   '#1a1a1a',
+
+  divColor:   '#e65c00',
+
+};
+
+
+
+let tickers = [
+
+  'SPY','QQQ','AAPL','NVDA','TSLA','MSFT','AMZN','META','GOOGL',
+
+  'AMD','PLTR','SMCI','^GSPC','^DJI','^VIX','BTC-USD','GLD','SLV','USO','TLT'
+
+];
+
+let quoteData = {};
+
+let rows = [];      // [{canvas, ctx, offset, dotMap, totalW}]
+
+let numRows = 1;
+
+let animId = null;
+
+let refreshTimer = null;
+
+const REFRESH_MS = 60000;
+
+
+
+// ── CLOCK ────────────────────────────────────────────────────────────────────
+
+function updateClock() {
+
+  const t = new Date().toLocaleTimeString('en-US',
+
+    {hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true,timeZone:'America/New_York'});
+
+  document.getElementById('clock').textContent = t + ' ET';
+
+}
+
+setInterval(updateClock, 1000);
+
+updateClock();
+
+
+
+// ── FETCH PRICES ─────────────────────────────────────────────────────────────
+
+function setStatus(msg, type='') {
+
+  const el = document.getElementById('status-line');
+
+  el.textContent = msg; el.className = type;
+
+}
+
+
+
+async function fetchOneTicker(sym) {
+
+  const enc   = encodeURIComponent(sym);
+
+  const yfUrl = `https://query2.finance.yahoo.com/v8/finance/chart/${enc}?interval=1d&range=2d`;
+
+  const urls  = [
+
+    `https://corsproxy.io/?url=${encodeURIComponent(yfUrl)}`,
+
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(yfUrl)}`,
+
+    yfUrl,
+
+  ];
+
+  for (const url of urls) {
+
+    try {
+
+      const r = await fetch(url, { cache: 'no-store' });
+
+      if (!r.ok) continue;
+
+      const j    = await r.json();
+
+      const meta = j?.chart?.result?.[0]?.meta;
+
+      if (!meta) continue;
+
+      const price = meta.regularMarketPrice ?? meta.previousClose;
+
+      if (!price) continue;
+
+      const prev  = meta.chartPreviousClose ?? meta.previousClose ?? price;
+
+      const chg   = price - prev;
+
+      const pct   = prev ? (chg / prev) * 100 : 0;
+
+      return { price, chg, pct };
+
+    } catch { /* try next url */ }
+
+  }
+
+  return null;
+
+}
+
+
+
+async function fetchAll() {
+
+  setStatus('Fetching prices…');
+
+  const results = await Promise.all(tickers.map(sym =>
+
+    fetchOneTicker(sym).then(d => ({ sym, d }))
+
+  ));
+
+  let loaded = 0;
+
+  results.forEach(({ sym, d }) => {
+
+    if (d) { quoteData[sym] = d; loaded++; }
+
+  });
+
+  if (!loaded) {
+
+    setStatus('⚠ No prices loaded — check connection', 'err');
+
+  } else {
+
+    const now = new Date().toLocaleTimeString('en-US',
+
+      { hour:'2-digit', minute:'2-digit', hour12:true, timeZone:'America/New_York' });
+
+    document.getElementById('last-update').textContent = 'Updated ' + now + ' ET';
+
+    setStatus(`✓ ${loaded} / ${tickers.length} tickers loaded`, 'ok');
+
+  }
+
+  // Refresh ticker segment data in-place — do NOT reset offsets
+
+  if (rows.length > 0) {
+
+    rows.forEach(row => {
+
+      row.tickerData = cfg.ledMode ? buildLEDItems(row.canvas.height) : buildTickerItems(row.ctx);
+
+    });
+
+  } else {
+
+    rebuildLED();
+
+  }
+
+}
+
+
+
+// ── TICKER TEXT SEGMENTS ──────────────────────────────────────────────────────
+
+// Simple fillText rendering — no dot matrix, no canvas size limits.
+
+function buildTickerItems(ctx) {
+
+  const fs   = cfg.dotSize;            // slider value IS the font size in px
+
+  const font = `bold ${fs}px ${cfg.font}`;
+
+  ctx.font   = font;
+
+  const GAP  = fs * 0.9;              // space between tickers
+
+
+
+  const segments  = [];  // {text, color, x, w}
+
+  const markers   = [];  // {sym, x} for voice trigger
+
+  let curX = 0;
+
+
+
+  tickers.forEach(sym => {
+
+    const d    = quoteData[sym];
+
+    const DISP_NAMES = {
+
+      '^GSPC':'S&P 500','^DJI':'DOW','^VIX':'VIX',
+
+      'BTC-USD':'BTC','ETH-USD':'ETH',
+
+    };
+
+    const disp = DISP_NAMES[sym] || sym.replace('^','').replace('-USD',' USD');
+
+    markers.push({ sym, x: curX });
+
+
+
+    // Symbol
+
+    const symText = disp + '  ';
+
+    const symW    = ctx.measureText(symText).width;
+
+    segments.push({ text: symText, color: cfg.symColor, x: curX, w: symW });
+
+    curX += symW;
+
+
+
+    if (d) {
+
+      const pStr = d.price >= 1000
+
+        ? d.price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})
+
+        : d.price.toFixed(2);
+
+      const priceText = pStr + '  ';
+
+      const priceW    = ctx.measureText(priceText).width;
+
+      segments.push({ text: priceText, color: cfg.priceColor, x: curX, w: priceW });
+
+      curX += priceW;
+
+
+
+      const sign    = d.chg >= 0 ? '+' : '';
+
+      const arrow   = d.chg > 0 ? '▲' : d.chg < 0 ? '▼' : '■';
+
+      const chgText = `${arrow}${sign}${d.chg.toFixed(2)} (${sign}${d.pct.toFixed(2)}%)`;
+
+      const chgColor = d.chg > 0 ? cfg.upColor : d.chg < 0 ? cfg.downColor : '#888';
+
+      const chgW     = ctx.measureText(chgText).width;
+
+      segments.push({ text: chgText, color: chgColor, x: curX, w: chgW });
+
+      curX += chgW;
+
+    } else {
+
+      const naW = ctx.measureText('---').width;
+
+      segments.push({ text: '---', color: '#555', x: curX, w: naW });
+
+      curX += naW;
+
+    }
+
+
+
+    // Divider gap
+
+    const divText = '  |  ';
+
+    const divW    = ctx.measureText(divText).width;
+
+    segments.push({ text: divText, color: cfg.divColor, x: curX, w: divW });
+
+    curX += divW + GAP;
+
+  });
+
+
+
+  return { segments, totalWidth: curX, markers, font };
+
+}
+
+
+
+// ── LED DOT-MATRIX ENGINE ─────────────────────────────────────────────────────
+
+// Fixed small dotGrid — taller banner = more rows = more detail (classic LED approach)
+
+const LED_DOT_PX = 6; // physical size of each dot cell in pixels
+
+
+
+function textToDots(text, dotGrid, numRows, font) {
+
+  // Render at 4× resolution for crisp sampling of thin strokes
+
+  const scale    = 4;
+
+  const dg4      = dotGrid * scale;
+
+  const cellH    = numRows * dg4;
+
+  const fontSize = Math.round(cellH * 0.88);
+
+  const oc       = document.createElement('canvas');
+
+  oc.height      = cellH;
+
+  const octx     = oc.getContext('2d');
+
+  octx.font      = `900 ${fontSize}px ${font}`;
+
+  const tw       = octx.measureText(text).width;
+
+  oc.width       = Math.max(1, Math.ceil(tw) + dg4 * 2);
+
+  octx.font      = `900 ${fontSize}px ${font}`;
+
+  octx.fillStyle = '#fff';
+
+  octx.fillText(text, dg4, fontSize * 0.88);
+
+  const imgData  = octx.getImageData(0, 0, oc.width, oc.height);
+
+  const W4       = oc.width;
+
+  const dots     = [];
+
+  const gridW    = Math.ceil(oc.width / dg4);
+
+  // Sample each dot cell: count lit pixels across a 5×5 sub-grid
+
+  for (let gy = 0; gy < numRows; gy++) {
+
+    for (let gx = 0; gx < gridW; gx++) {
+
+      let lit = 0;
+
+      for (let sy = 1; sy <= 3; sy++) {
+
+        for (let sx = 1; sx <= 3; sx++) {
+
+          const px = Math.floor(gx * dg4 + sx * dg4 / 4);
+
+          const py = Math.floor(gy * dg4 + sy * dg4 / 4);
+
+          if (px < W4 && py < oc.height &&
+
+              imgData.data[(py * W4 + px) * 4 + 3] > 40) lit++;
+
+        }
+
+      }
+
+      if (lit >= 2) dots.push([gx, gy]); // 2+ of 9 samples lit → dot on
+
+    }
+
+  }
+
+  return { dots, gridW };
+
+}
+
+
+
+function buildLEDItems(canvasH) {
+
+  const dotGrid = LED_DOT_PX;
+
+  const numRows = Math.max(7, Math.floor(canvasH / dotGrid)); // fills full height
+
+  const GAP     = 8; // dot columns gap between tickers
+
+  const font    = cfg.font;
+
+
+
+  const DISP_NAMES = {
+
+    '^GSPC':'S&P 500','^DJI':'DOW','^VIX':'VIX','BTC-USD':'BTC','ETH-USD':'ETH',
+
+  };
+
+
+
+  const segments  = [];
+
+  const markers   = [];
+
+  let curGridX = 0;
+
+
+
+  tickers.forEach(sym => {
+
+    const d    = quoteData[sym];
+
+    const disp = DISP_NAMES[sym] || sym.replace('^','').replace('-USD',' USD');
+
+    const dir  = d ? (d.chg > 0 ? 'up' : d.chg < 0 ? 'down' : 'flat') : 'na';
+
+    markers.push({ sym, gridX: curGridX });
+
+
+
+    const parts = [];
+
+    parts.push({ m: textToDots(disp, dotGrid, numRows, font), c: cfg.symColor });
+
+    parts.push({ m: { dots:[], gridW: 2 }, c: '#000' });
+
+
+
+    if (d) {
+
+      const pStr = d.price >= 1000
+
+        ? d.price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})
+
+        : d.price.toFixed(2);
+
+      parts.push({ m: textToDots(pStr, dotGrid, numRows, font), c: cfg.priceColor });
+
+      parts.push({ m: { dots:[], gridW: 2 }, c: '#000' });
+
+      const sign     = d.chg >= 0 ? '+' : '';
+
+      const arrow    = d.chg > 0 ? '▲' : d.chg < 0 ? '▼' : '■';
+
+      const cStr     = `${arrow}${sign}${d.chg.toFixed(2)} (${sign}${d.pct.toFixed(2)}%)`;
+
+      const chgColor = dir==='up' ? cfg.upColor : dir==='down' ? cfg.downColor : '#888';
+
+      parts.push({ m: textToDots(cStr, dotGrid, numRows, font), c: chgColor });
+
+    } else {
+
+      parts.push({ m: textToDots('---', dotGrid, numRows, font), c: '#555' });
+
+    }
+
+    parts.push({ m: { dots:[], gridW: 3 }, c: '#000' });
+
+    parts.push({ m: textToDots('|', dotGrid, numRows, font), c: cfg.divColor });
+
+
+
+    const itemDots = [];
+
+    let ix = 0;
+
+    parts.forEach(({ m, c }) => {
+
+      m.dots.forEach(([gx, gy]) => itemDots.push({ gx: gx + ix, gy, color: c }));
+
+      ix += m.gridW + 1;
+
+    });
+
+    segments.push({ dots: itemDots, gridW: ix, startGridX: curGridX });
+
+    curGridX += ix + GAP;
+
+  });
+
+
+
+  return { segments, totalGridW: curGridX, markers, dotGrid, numRows };
+
+}
+
+
+
+// ── VOICE ENGINE ─────────────────────────────────────────────────────────────
+
+let voiceOn   = false;
+
+const spokenAt = {}; // sym → timestamp, prevents double-firing
+
+let voices    = [];
+
+let voiceIdx  = 0;
+
+let voiceVol  = 1.0;
+
+let voiceRate = 1.1;
+
+
+
+const NAMES = {
+
+  'SPY':'S P Y','QQQ':'Q Q Q','AAPL':'Apple','NVDA':'Nvidia','TSLA':'Tesla',
+
+  'MSFT':'Microsoft','AMZN':'Amazon','META':'Meta','GOOGL':'Google','AMD':'A M D',
+
+  'PLTR':'Palantir','SMCI':'Super Micro','BTC-USD':'Bitcoin',
+
+  '^GSPC':'S and P 500','^DJI':'Dow Jones','^VIX':'Vix',
+
+  'GLD':'Gold','SLV':'Silver','USO':'Oil','TLT':'T L T',
+
+};
+
+
+
+function loadVoices() {
+
+  voices = window.speechSynthesis.getVoices().filter(v => v.lang.startsWith('en'));
+
+  const sel = document.getElementById('voice-select');
+
+  if (!sel || !voices.length) return;
+
+  sel.innerHTML = voices.map((v, i) =>
+
+    `<option value="${i}">${v.name} (${v.lang})</option>`
+
+  ).join('');
+
+}
+
+if (window.speechSynthesis) {
+
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+
+  setTimeout(loadVoices, 300);
+
+}
+
+
+
+function speakTicker(sym) {
+
+  if (!voiceOn || !window.speechSynthesis) return;
+
+  const d = quoteData[sym];
+
+  if (!d) return;
+
+  const name   = NAMES[sym] || sym.replace('^','').replace('-USD','');
+
+  const dir    = d.chg > 0 ? 'up' : d.chg < 0 ? 'down' : 'unchanged';
+
+  const pStr   = d.price.toFixed(2);
+
+  const pctStr = Math.abs(d.pct).toFixed(1);
+
+  const text   = `${name}... ${pStr}...... ${dir}...... ${pctStr} percent`;
+
+  const now    = Date.now();
+
+  if (spokenAt[sym] && now - spokenAt[sym] < 8000) return; // 8s cooldown per ticker
+
+  spokenAt[sym] = now;
+
+  window.speechSynthesis.cancel();
+
+  const utt  = new SpeechSynthesisUtterance(text);
+
+  if (voices[voiceIdx]) utt.voice = voices[voiceIdx];
+
+  utt.rate   = voiceRate;
+
+  utt.pitch  = 1.0;
+
+  utt.volume = voiceVol;
+
+  window.speechSynthesis.speak(utt);
+
+}
+
+
+
+function toggleRainbow() {
+
+  const wrap = document.getElementById('banner-wrap');
+
+  const btn  = document.getElementById('rainbow-btn');
+
+  const paused = wrap.classList.toggle('rainbow-paused');
+
+  btn.style.opacity = paused ? '0.4' : '1';
+
+}
+
+
+
 let _speechHeartbeat = null;
 function startSpeechHeartbeat() {
     if (_speechHeartbeat) return;
@@ -707,278 +1374,550 @@ function toggleVoice() {
         window.speechSynthesis.cancel();
         stopSpeechHeartbeat();
     }
-}
-
-function toggleLED() {
-  cfg.ledMode = !cfg.ledMode;
-  const btn = document.getElementById('led-btn');
-  btn.textContent       = cfg.ledMode ? 'LED' : 'TEXT';
-  btn.style.borderColor = cfg.ledMode ? 'var(--orange)' : '#fff';
-  btn.style.color       = cfg.ledMode ? 'var(--orange)' : '#fff';
-  // Show/hide dot gap slider in settings
-  document.getElementById('sGap').closest('.sgroup').style.display = cfg.ledMode ? '' : 'none';
-  rebuildLED();
-}
-
-// ── RENDER LOOP ───────────────────────────────────────────────────────────────
-let _lastTs = null;
-
-function drawFrame(ts) {
-  const dt = _lastTs === null ? 0 : Math.min((ts - _lastTs) / 1000, 0.1);
-  _lastTs = ts;
-  const pxPerSec = cfg.speed * 90;
-
-  rows.forEach((row, ri) => {
-    const { canvas, ctx, tickerData } = row;
-    if (!tickerData) return;
-    const W = canvas.width, H = canvas.height;
-
-    if (cfg.ledMode) {
-      // ── LED MODE ──────────────────────────────────────────────────────────
-      const { segments, totalGridW, markers, dotGrid, numRows } = tickerData;
-      const totalPx = totalGridW * dotGrid;
-      if (totalPx <= 0) return;
-
-      const prevOffset = row.offset;
-      const rowMult = ri === 1 ? 0.85 : ri === 2 ? 1.15 : 1;
-      row.offset = (row.offset + pxPerSec * rowMult * dt) % totalPx;
-
-      if (ri === 0) {
-        markers.forEach(({ sym, gridX }) => {
-          const px    = gridX * dotGrid;
-          const xNow  = ((px - row.offset) % totalPx + totalPx) % totalPx;
-          const xPrev = ((px - prevOffset)  % totalPx + totalPx) % totalPx;
-          if (xPrev > W && xNow <= W) speakTicker(sym);
-        });
-      }
-
-      ctx.fillStyle = cfg.bgColor;
-      ctx.fillRect(0, 0, W, H);
-
-      const r        = dotGrid * 0.38; // ~38% of cell — clear gap between dots
-      const dimR     = dotGrid * 0.22; // smaller unlit dot
-      const charPx   = tickerData.numRows * dotGrid;
-      const yOff     = Math.floor(Math.max(0, (H - charPx) / 2) / dotGrid) * dotGrid;
-      const gridCols = Math.ceil(W / dotGrid) + 2;
-      const gridRows = Math.ceil(H / dotGrid) + 1;
-
-      // Unlit dots
-      ctx.fillStyle = cfg.dimColor;
-      for (let gy = 0; gy < gridRows; gy++) {
-        for (let gx = 0; gx < gridCols; gx++) {
-          ctx.beginPath();
-          ctx.arc(gx * dotGrid + r + 0.5, gy * dotGrid + r + 0.5, dimR, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-
-      // Lit dots grouped by color for performance
-      const groups = {};
-      segments.forEach(({ dots, gridW, startGridX }) => {
-        const baseX = startGridX * dotGrid - row.offset;
-        for (let rep = 0; rep <= 1; rep++) {
-          const ox = baseX + rep * totalPx;
-          if (ox + gridW * dotGrid < -dotGrid || ox > W + dotGrid) continue;
-          dots.forEach(({ gx, gy, color }) => {
-            const cx = ox + gx * dotGrid + r + 0.5;
-            if (cx < -dotGrid || cx > W + dotGrid) return;
-            if (!groups[color]) groups[color] = [];
-            groups[color].push(cx, yOff + gy * dotGrid + r + 0.5);
-          });
-        }
-        // wrap-around check
-        const oxNeg = baseX - totalPx;
-        if (oxNeg + gridW * dotGrid > -dotGrid && oxNeg < W + dotGrid) {
-          dots.forEach(({ gx, gy, color }) => {
-            const cx = oxNeg + gx * dotGrid + r + 0.5;
-            if (cx < -dotGrid || cx > W + dotGrid) return;
-            if (!groups[color]) groups[color] = [];
-            groups[color].push(cx, yOff + gy * dotGrid + r + 0.5);
-          });
-        }
-      });
-
-      Object.entries(groups).forEach(([color, pts]) => {
-        ctx.shadowColor = color;
-        ctx.shadowBlur  = Math.min(cfg.glow, dotGrid * 0.8);
-        ctx.fillStyle   = color;
-        ctx.beginPath();
-        for (let i = 0; i < pts.length; i += 2) {
-          ctx.moveTo(pts[i] + r, pts[i + 1]);
-          ctx.arc(pts[i], pts[i + 1], r, 0, Math.PI * 2);
-        }
-        ctx.fill();
-      });
-      ctx.shadowBlur = 0;
-
-    } else {
-      // ── TEXT MODE ─────────────────────────────────────────────────────────
-      const { segments, totalWidth, markers, font } = tickerData;
-      if (totalWidth <= 0) return;
-
-      const prevOffset = row.offset;
-      const rowMult = ri === 1 ? 0.85 : ri === 2 ? 1.15 : 1;
-      row.offset = (row.offset + pxPerSec * rowMult * dt) % totalWidth;
-
-      if (ri === 0) {
-        markers.forEach(({ sym, x }) => {
-          const xNow  = ((x - row.offset) % totalWidth + totalWidth) % totalWidth;
-          const xPrev = ((x - prevOffset)  % totalWidth + totalWidth) % totalWidth;
-          if (xPrev > W && xNow <= W) speakTicker(sym);
-        });
-      }
-
-      ctx.fillStyle    = cfg.bgColor;
-      ctx.fillRect(0, 0, W, H);
-      ctx.font         = font;
-      ctx.textBaseline = 'middle';
-      const yMid = H / 2;
-
-      segments.forEach(({ text, color, x, w }) => {
-        const baseX = x - row.offset;
-        for (let rep = 0; rep <= 1; rep++) {
-          const dx = baseX + rep * totalWidth;
-          if (dx + w > 0 && dx < W) { ctx.fillStyle = color; ctx.fillText(text, dx, yMid); }
-        }
-        const dxNeg = baseX - totalWidth;
-        if (dxNeg + w > 0 && dxNeg < W) { ctx.fillStyle = color; ctx.fillText(text, dxNeg, yMid); }
-      });
-    }
-  });
-  animId = requestAnimationFrame(drawFrame);
-}
-
-// ── BUILD / REBUILD ──────────────────────────────────────────────────────────
-function rebuildLED() {
-  if (animId) cancelAnimationFrame(animId);
-
-  const wrap   = document.getElementById('banner-wrap');
-  const strips = wrap.querySelectorAll('.rainbow-strip');
-  wrap.querySelectorAll('.led-row').forEach(el => el.remove());
-  rows = [];
-
-  for (let ri = 0; ri < numRows; ri++) {
-    const div    = document.createElement('div');
-    div.className = 'led-row';
-    const canvas = document.createElement('canvas');
-    canvas.className = 'led-canvas';
-    div.appendChild(canvas);
-    wrap.insertBefore(div, strips[strips.length - 1]);
-
-    const rect    = div.getBoundingClientRect();
-    canvas.width  = rect.width  || window.innerWidth;
-    canvas.height = rect.height || Math.floor((window.innerHeight - 50) / numRows);
-
-    const ctx        = canvas.getContext('2d');
-    const tickerData = cfg.ledMode ? buildLEDItems(canvas.height) : buildTickerItems(ctx);
-
-    rows.push({ canvas, ctx, offset: ri * 300, tickerData });
-  }
-
-  window.onresize = () => {
-    rows.forEach(row => {
-      row.canvas.width  = row.canvas.offsetWidth  || window.innerWidth;
-      row.canvas.height = row.canvas.offsetHeight || 100;
-      row.tickerData = cfg.ledMode ? buildLEDItems(row.canvas.height) : buildTickerItems(row.ctx);
-    });
-  };
-
-  _lastTs = null;
-  animId = requestAnimationFrame(drawFrame);
-}
-
-// ── SETTINGS HELPERS ─────────────────────────────────────────────────────────
-function togglePanel() {
-  document.getElementById('settings-panel').classList.toggle('open');
-  document.getElementById('overlay').classList.toggle('show');
-}
-function setRows(n) {
-  numRows = n;
-  [1,2,3].forEach(i => document.getElementById('rb'+i).classList.toggle('active', i===n));
-  rebuildLED();
-}
-function applyTickers() {
-  tickers = document.getElementById('sTickers').value
-    .split(/[\n,]+/).map(s=>s.trim().toUpperCase()).filter(Boolean);
-  quoteData = {};
-  fetchAll();
-}
-function forceRefresh() {
-  clearInterval(refreshTimer);
-  fetchAll();
-  refreshTimer = setInterval(fetchAll, REFRESH_MS);
-}
-function speedLabel(v) {
-  if (v <= 0.5) return 'Slowest';
-  if (v <= 1.0) return 'Slow';
-  if (v <= 1.8) return 'Normal';
-  if (v <= 3.0) return 'Fast';
-  return 'Fastest';
-}
-
-// ── CSV IMPORT / EXPORT ──────────────────────────────────────────────────────
-function exportCSV() {
-  const name  = prompt('Name for this ticker list:', 'My Watchlist') || 'Watchlist';
-  const lines = [name, ...tickers].join('\n');
-  const blob  = new Blob([lines], { type: 'text/csv' });
-  const a     = document.createElement('a');
-  a.href      = URL.createObjectURL(blob);
-  a.download  = name.replace(/\s+/g, '_') + '.csv';
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
-function importCSV(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const lines = e.target.result.split(/[\r\n]+/).map(l => l.trim()).filter(Boolean);
-    // Skip first line if it looks like a name (no ^ and contains letters but not like a ticker)
-    let start = 0;
-    if (lines[0] && !/^[\^A-Z]{1,6}(-USD)?$/.test(lines[0].toUpperCase())) start = 1;
-    const newTickers = lines.slice(start)
-      .flatMap(l => l.split(','))
-      .map(s => s.trim().toUpperCase())
-      .filter(Boolean);
-    if (!newTickers.length) { setStatus('⚠ No valid tickers found in CSV', 'err'); return; }
-    tickers = newTickers;
-    document.getElementById('sTickers').value = tickers.join(', ');
-    quoteData = {};
-    setStatus('✓ Loaded ' + tickers.length + ' tickers from ' + file.name, 'ok');
-    fetchAll();
-  };
-  reader.readAsText(file);
-  input.value = '';
-}
-
-function resetDefaults() {
-  cfg.dotSize=80; cfg.dotGap=2; cfg.glow=18; cfg.speed=1.5;
-  cfg.font="'Share Tech Mono', monospace";
-  cfg.bgColor='#000000'; cfg.symColor='#ffffff'; cfg.priceColor='#00e5ff';
-  cfg.upColor='#00ff88'; cfg.downColor='#ff3b3b'; cfg.dimColor='#1a1a1a'; cfg.divColor='#e65c00';
-  document.getElementById('sFont').value="'Share Tech Mono', monospace";
-  document.getElementById('sDot').value=80;  document.getElementById('vDot').textContent='80';
-  document.getElementById('sGap').value=2;   document.getElementById('vGap').textContent='2';
-  document.getElementById('sGlow').value=18; document.getElementById('vGlow').textContent='18';
-  document.getElementById('sSpeed').value=1.5; document.getElementById('vSpeed').textContent='Normal';
-  document.getElementById('cBg').value='#000000';
-  document.getElementById('cSym').value='#ffffff';
-  document.getElementById('cPrice').value='#00e5ff';
-  document.getElementById('cUp').value='#00ff88';
-  document.getElementById('cDown').value='#ff3b3b';
-  document.getElementById('cDim').value='#1a1a1a';
-  document.getElementById('cDiv').value='#e65c00';
-  setRows(1);
-}
-
-// ── INIT ─────────────────────────────────────────────────────────────────────
-// Give fonts time to load before first render
-document.fonts.ready.then(() => {
-  rebuildLED();           // show dot grid immediately (prices may be ---)
-  fetchAll();             // then fetch prices
-  refreshTimer = setInterval(fetchAll, REFRESH_MS);
-});
-</script>
+}
+
+
+
+function toggleLED() {
+
+  cfg.ledMode = !cfg.ledMode;
+
+  const btn = document.getElementById('led-btn');
+
+  btn.textContent       = cfg.ledMode ? 'LED' : 'TEXT';
+
+  btn.style.borderColor = cfg.ledMode ? 'var(--orange)' : '#fff';
+
+  btn.style.color       = cfg.ledMode ? 'var(--orange)' : '#fff';
+
+  // Show/hide dot gap slider in settings
+
+  document.getElementById('sGap').closest('.sgroup').style.display = cfg.ledMode ? '' : 'none';
+
+  rebuildLED();
+
+}
+
+
+
+// ── RENDER LOOP ───────────────────────────────────────────────────────────────
+
+let _lastTs = null;
+
+
+
+function drawFrame(ts) {
+
+  const dt = _lastTs === null ? 0 : Math.min((ts - _lastTs) / 1000, 0.1);
+
+  _lastTs = ts;
+
+  const pxPerSec = cfg.speed * 90;
+
+
+
+  rows.forEach((row, ri) => {
+
+    const { canvas, ctx, tickerData } = row;
+
+    if (!tickerData) return;
+
+    const W = canvas.width, H = canvas.height;
+
+
+
+    if (cfg.ledMode) {
+
+      // ── LED MODE ──────────────────────────────────────────────────────────
+
+      const { segments, totalGridW, markers, dotGrid, numRows } = tickerData;
+
+      const totalPx = totalGridW * dotGrid;
+
+      if (totalPx <= 0) return;
+
+
+
+      const prevOffset = row.offset;
+
+      const rowMult = ri === 1 ? 0.85 : ri === 2 ? 1.15 : 1;
+
+      row.offset = (row.offset + pxPerSec * rowMult * dt) % totalPx;
+
+
+
+      if (ri === 0) {
+
+        markers.forEach(({ sym, gridX }) => {
+
+          const px    = gridX * dotGrid;
+
+          const xNow  = ((px - row.offset) % totalPx + totalPx) % totalPx;
+
+          const xPrev = ((px - prevOffset)  % totalPx + totalPx) % totalPx;
+
+          if (xPrev > W && xNow <= W) speakTicker(sym);
+
+        });
+
+      }
+
+
+
+      ctx.fillStyle = cfg.bgColor;
+
+      ctx.fillRect(0, 0, W, H);
+
+
+
+      const r        = dotGrid * 0.38; // ~38% of cell — clear gap between dots
+
+      const dimR     = dotGrid * 0.22; // smaller unlit dot
+
+      const charPx   = tickerData.numRows * dotGrid;
+
+      const yOff     = Math.floor(Math.max(0, (H - charPx) / 2) / dotGrid) * dotGrid;
+
+      const gridCols = Math.ceil(W / dotGrid) + 2;
+
+      const gridRows = Math.ceil(H / dotGrid) + 1;
+
+
+
+      // Unlit dots
+
+      ctx.fillStyle = cfg.dimColor;
+
+      for (let gy = 0; gy < gridRows; gy++) {
+
+        for (let gx = 0; gx < gridCols; gx++) {
+
+          ctx.beginPath();
+
+          ctx.arc(gx * dotGrid + r + 0.5, gy * dotGrid + r + 0.5, dimR, 0, Math.PI * 2);
+
+          ctx.fill();
+
+        }
+
+      }
+
+
+
+      // Lit dots grouped by color for performance
+
+      const groups = {};
+
+      segments.forEach(({ dots, gridW, startGridX }) => {
+
+        const baseX = startGridX * dotGrid - row.offset;
+
+        for (let rep = 0; rep <= 1; rep++) {
+
+          const ox = baseX + rep * totalPx;
+
+          if (ox + gridW * dotGrid < -dotGrid || ox > W + dotGrid) continue;
+
+          dots.forEach(({ gx, gy, color }) => {
+
+            const cx = ox + gx * dotGrid + r + 0.5;
+
+            if (cx < -dotGrid || cx > W + dotGrid) return;
+
+            if (!groups[color]) groups[color] = [];
+
+            groups[color].push(cx, yOff + gy * dotGrid + r + 0.5);
+
+          });
+
+        }
+
+        // wrap-around check
+
+        const oxNeg = baseX - totalPx;
+
+        if (oxNeg + gridW * dotGrid > -dotGrid && oxNeg < W + dotGrid) {
+
+          dots.forEach(({ gx, gy, color }) => {
+
+            const cx = oxNeg + gx * dotGrid + r + 0.5;
+
+            if (cx < -dotGrid || cx > W + dotGrid) return;
+
+            if (!groups[color]) groups[color] = [];
+
+            groups[color].push(cx, yOff + gy * dotGrid + r + 0.5);
+
+          });
+
+        }
+
+      });
+
+
+
+      Object.entries(groups).forEach(([color, pts]) => {
+
+        ctx.shadowColor = color;
+
+        ctx.shadowBlur  = Math.min(cfg.glow, dotGrid * 0.8);
+
+        ctx.fillStyle   = color;
+
+        ctx.beginPath();
+
+        for (let i = 0; i < pts.length; i += 2) {
+
+          ctx.moveTo(pts[i] + r, pts[i + 1]);
+
+          ctx.arc(pts[i], pts[i + 1], r, 0, Math.PI * 2);
+
+        }
+
+        ctx.fill();
+
+      });
+
+      ctx.shadowBlur = 0;
+
+
+
+    } else {
+
+      // ── TEXT MODE ─────────────────────────────────────────────────────────
+
+      const { segments, totalWidth, markers, font } = tickerData;
+
+      if (totalWidth <= 0) return;
+
+
+
+      const prevOffset = row.offset;
+
+      const rowMult = ri === 1 ? 0.85 : ri === 2 ? 1.15 : 1;
+
+      row.offset = (row.offset + pxPerSec * rowMult * dt) % totalWidth;
+
+
+
+      if (ri === 0) {
+
+        markers.forEach(({ sym, x }) => {
+
+          const xNow  = ((x - row.offset) % totalWidth + totalWidth) % totalWidth;
+
+          const xPrev = ((x - prevOffset)  % totalWidth + totalWidth) % totalWidth;
+
+          if (xPrev > W && xNow <= W) speakTicker(sym);
+
+        });
+
+      }
+
+
+
+      ctx.fillStyle    = cfg.bgColor;
+
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.font         = font;
+
+      ctx.textBaseline = 'middle';
+
+      const yMid = H / 2;
+
+
+
+      segments.forEach(({ text, color, x, w }) => {
+
+        const baseX = x - row.offset;
+
+        for (let rep = 0; rep <= 1; rep++) {
+
+          const dx = baseX + rep * totalWidth;
+
+          if (dx + w > 0 && dx < W) { ctx.fillStyle = color; ctx.fillText(text, dx, yMid); }
+
+        }
+
+        const dxNeg = baseX - totalWidth;
+
+        if (dxNeg + w > 0 && dxNeg < W) { ctx.fillStyle = color; ctx.fillText(text, dxNeg, yMid); }
+
+      });
+
+    }
+
+  });
+
+  animId = requestAnimationFrame(drawFrame);
+
+}
+
+
+
+// ── BUILD / REBUILD ──────────────────────────────────────────────────────────
+
+function rebuildLED() {
+
+  if (animId) cancelAnimationFrame(animId);
+
+
+
+  const wrap   = document.getElementById('banner-wrap');
+
+  const strips = wrap.querySelectorAll('.rainbow-strip');
+
+  wrap.querySelectorAll('.led-row').forEach(el => el.remove());
+
+  rows = [];
+
+
+
+  for (let ri = 0; ri < numRows; ri++) {
+
+    const div    = document.createElement('div');
+
+    div.className = 'led-row';
+
+    const canvas = document.createElement('canvas');
+
+    canvas.className = 'led-canvas';
+
+    div.appendChild(canvas);
+
+    wrap.insertBefore(div, strips[strips.length - 1]);
+
+
+
+    const rect    = div.getBoundingClientRect();
+
+    canvas.width  = rect.width  || window.innerWidth;
+
+    canvas.height = rect.height || Math.floor((window.innerHeight - 50) / numRows);
+
+
+
+    const ctx        = canvas.getContext('2d');
+
+    const tickerData = cfg.ledMode ? buildLEDItems(canvas.height) : buildTickerItems(ctx);
+
+
+
+    rows.push({ canvas, ctx, offset: ri * 300, tickerData });
+
+  }
+
+
+
+  window.onresize = () => {
+
+    rows.forEach(row => {
+
+      row.canvas.width  = row.canvas.offsetWidth  || window.innerWidth;
+
+      row.canvas.height = row.canvas.offsetHeight || 100;
+
+      row.tickerData = cfg.ledMode ? buildLEDItems(row.canvas.height) : buildTickerItems(row.ctx);
+
+    });
+
+  };
+
+
+
+  _lastTs = null;
+
+  animId = requestAnimationFrame(drawFrame);
+
+}
+
+
+
+// ── SETTINGS HELPERS ─────────────────────────────────────────────────────────
+
+function togglePanel() {
+
+  document.getElementById('settings-panel').classList.toggle('open');
+
+  document.getElementById('overlay').classList.toggle('show');
+
+}
+
+function setRows(n) {
+
+  numRows = n;
+
+  [1,2,3].forEach(i => document.getElementById('rb'+i).classList.toggle('active', i===n));
+
+  rebuildLED();
+
+}
+
+function applyTickers() {
+
+  tickers = document.getElementById('sTickers').value
+
+    .split(/[\n,]+/).map(s=>s.trim().toUpperCase()).filter(Boolean);
+
+  quoteData = {};
+
+  fetchAll();
+
+}
+
+function forceRefresh() {
+
+  clearInterval(refreshTimer);
+
+  fetchAll();
+
+  refreshTimer = setInterval(fetchAll, REFRESH_MS);
+
+}
+
+function speedLabel(v) {
+
+  if (v <= 0.5) return 'Slowest';
+
+  if (v <= 1.0) return 'Slow';
+
+  if (v <= 1.8) return 'Normal';
+
+  if (v <= 3.0) return 'Fast';
+
+  return 'Fastest';
+
+}
+
+
+
+// ── CSV IMPORT / EXPORT ──────────────────────────────────────────────────────
+
+function exportCSV() {
+
+  const name  = prompt('Name for this ticker list:', 'My Watchlist') || 'Watchlist';
+
+  const lines = [name, ...tickers].join('\n');
+
+  const blob  = new Blob([lines], { type: 'text/csv' });
+
+  const a     = document.createElement('a');
+
+  a.href      = URL.createObjectURL(blob);
+
+  a.download  = name.replace(/\s+/g, '_') + '.csv';
+
+  a.click();
+
+  URL.revokeObjectURL(a.href);
+
+}
+
+function importCSV(input) {
+
+  const file = input.files[0];
+
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = e => {
+
+    const lines = e.target.result.split(/[\r\n]+/).map(l => l.trim()).filter(Boolean);
+
+    // Skip first line if it looks like a name (no ^ and contains letters but not like a ticker)
+
+    let start = 0;
+
+    if (lines[0] && !/^[\^A-Z]{1,6}(-USD)?$/.test(lines[0].toUpperCase())) start = 1;
+
+    const newTickers = lines.slice(start)
+
+      .flatMap(l => l.split(','))
+
+      .map(s => s.trim().toUpperCase())
+
+      .filter(Boolean);
+
+    if (!newTickers.length) { setStatus('⚠ No valid tickers found in CSV', 'err'); return; }
+
+    tickers = newTickers;
+
+    document.getElementById('sTickers').value = tickers.join(', ');
+
+    quoteData = {};
+
+    setStatus('✓ Loaded ' + tickers.length + ' tickers from ' + file.name, 'ok');
+
+    fetchAll();
+
+  };
+
+  reader.readAsText(file);
+
+  input.value = '';
+
+}
+
+
+
+function resetDefaults() {
+
+  cfg.dotSize=80; cfg.dotGap=2; cfg.glow=18; cfg.speed=1.5;
+
+  cfg.font="'Share Tech Mono', monospace";
+
+  cfg.bgColor='#000000'; cfg.symColor='#ffffff'; cfg.priceColor='#00e5ff';
+
+  cfg.upColor='#00ff88'; cfg.downColor='#ff3b3b'; cfg.dimColor='#1a1a1a'; cfg.divColor='#e65c00';
+
+  document.getElementById('sFont').value="'Share Tech Mono', monospace";
+
+  document.getElementById('sDot').value=80;  document.getElementById('vDot').textContent='80';
+
+  document.getElementById('sGap').value=2;   document.getElementById('vGap').textContent='2';
+
+  document.getElementById('sGlow').value=18; document.getElementById('vGlow').textContent='18';
+
+  document.getElementById('sSpeed').value=1.5; document.getElementById('vSpeed').textContent='Normal';
+
+  document.getElementById('cBg').value='#000000';
+
+  document.getElementById('cSym').value='#ffffff';
+
+  document.getElementById('cPrice').value='#00e5ff';
+
+  document.getElementById('cUp').value='#00ff88';
+
+  document.getElementById('cDown').value='#ff3b3b';
+
+  document.getElementById('cDim').value='#1a1a1a';
+
+  document.getElementById('cDiv').value='#e65c00';
+
+  setRows(1);
+
+}
+
+
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+
+// Give fonts time to load before first render
+
+document.fonts.ready.then(() => {
+
+  rebuildLED();           // show dot grid immediately (prices may be ---)
+
+  fetchAll();             // then fetch prices
+
+  refreshTimer = setInterval(fetchAll, REFRESH_MS);
+
+});
+
+</script>
+
 <script>
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js");
@@ -1018,6 +1957,8 @@ function pwaInstall() {
   _pwaPrompt.userChoice.then(() => { _pwaPrompt = null; });
 }
 </script>
-</body>
-</html>
+</body>
+
+</html>
+
 
