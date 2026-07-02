@@ -1,4 +1,8 @@
-// Minimal service worker required for PWA installability
-self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', () => self.clients.claim());
-self.addEventListener('fetch', e => e.respondWith(fetch(e.request)));
+// v2 — force cache bust
+const CACHE = 'fsb-v2';
+self.addEventListener('install', e => { self.skipWaiting(); });
+self.addEventListener('activate', e => {
+  e.waitUntil(caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))));
+  self.clients.claim();
+});
+self.addEventListener('fetch', e => e.respondWith(fetch(e.request, { cache: 'no-store' })));
