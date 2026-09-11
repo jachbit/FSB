@@ -2,11 +2,10 @@
   "name": "F.O.C.U.S. Stocks Banner",
   "short_name": "FSB",
   "description": "F.O.C.U.S. live stock ticker banner",
-  "start_url": "/",
+  "start_url": "/FSB/",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "standalone"],
-  "background_color": "#0a0e1a",
-  "theme_color": "#0a0e1a",
+  "background_color": "#002b5c",
+  "theme_color": "#002b5c",
   "orientation": "landscape",
   "icons": [
     {
